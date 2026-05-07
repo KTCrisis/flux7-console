@@ -199,6 +199,17 @@ Level 2: Human
          Decision written back to mem7 via agent-mesh.
 ```
 
+> **On the word "supervisor".** Level 1 here is an *implementation* of the
+> [supervisor protocol](https://github.com/KTCrisis/agent-mesh/blob/main/docs/supervisor-protocol.md)
+> that agent-mesh already exposes for external resolvers. The `supervisor/`
+> package inside the agent-mesh repo is a different concern — it handles
+> content redaction and prompt-injection detection on the protocol's
+> outbound payloads (`RedactParams`, `DetectInjection`). Phase 2 is a new
+> resolver implementing the protocol that consults mem7 before deciding —
+> not a new concept, not a renamed package. Each project keeps a single
+> meaning for "supervisor": agent-mesh exposes the protocol, the resolver
+> implements it.
+
 ### Supervisor decision logic (pseudocode)
 
 ```python
