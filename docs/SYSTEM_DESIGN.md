@@ -30,7 +30,9 @@ Go binary. Sidecar proxy between agents and their tools.
 | Grants | Temporary sudo-like bypass for specific agents |
 | Supervisor protocol | External process polls pending approvals, auto-resolves routine ones |
 
-**Current state:** v0.8.6, stable, docs polished.
+**Transports:** MCP stdio (Claude Code, Cursor) · MCP Streamable HTTP at `POST /mcp` (Anthropic Managed Agents, remote clients) · HTTP REST (`POST /tool/{name}`)
+
+**Current state:** v0.9.0, stable, docs polished.
 
 ### mem7 (memory substrate)
 
@@ -45,7 +47,7 @@ Go binary. MCP server for persistent, searchable, governed memory.
 | Temporal range queries | `since` / `until` filters on RFC3339 timestamps |
 | Python SDK | `pip install mem7`, provider-agnostic, wraps all tools via HTTP |
 
-**Current state:** v0.4.0, 71% LoCoMo benchmark, SDK shipped.
+**Current state:** v0.4.1, 71% LoCoMo benchmark, SDK + SSE transport + daemon mode shipped.
 
 ### agent7 (management plane / product)
 
@@ -292,6 +294,29 @@ customer infra
 ├── mem7 (per-team or central)
 └── agents (any framework)
 ```
+
+### Anthropic Managed Agents (cloud harness + governed tools)
+
+```
+Anthropic cloud (harness, sandbox, multi-agent orchestration)
+├── Managed Agent coordinator (Opus)
+│   ├── sub-agents (reviewer, tester, security)
+│   └── mcp_toolset → MCP Streamable HTTP
+│
+└── POST /mcp ──────────────────────────────►
+                                              your infra
+                                              ├── agent-mesh (policies, approval, traces)
+                                              │   └── POST /rpc ──► mem7 (decisions)
+                                              └── upstream MCP servers (ollama, arch7, ...)
+```
+
+**What Anthropic provides:** cloud sandbox, session durability, multi-agent coordination (threads), outcome grading (rubrics), vault credential management.
+
+**What agent-mesh adds:** fine-grained deny policies (Managed Agents only have allow/ask), per-agent rate limiting, temporal grants, decision persistence to mem7, OTEL traces, governed memory cross-session.
+
+**Integration point:** agent-mesh `POST /mcp` endpoint serves MCP Streamable HTTP. Managed Agent's MCP connector discovers tools via `tools/list`, calls them via `tools/call`. Policies apply transparently. Vault injects `Authorization: Bearer agent:<id>` for per-agent policy evaluation.
+
+**agent7 role:** same as for any deployment — dashboard, approval UI, governance scoring, audit trail. The Managed Agent sessions generate traces and decisions that flow to agent7 like any other agent.
 
 ---
 
