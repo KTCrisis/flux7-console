@@ -1,4 +1,4 @@
-"""Pydantic v2 models mirroring agent-mesh approval API responses."""
+"""Pydantic v2 models mirroring flux7-mesh approval API responses."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 
 class ApprovalSummary(BaseModel):
-    """Matches agent-mesh approvalView (proxy/handler.go)."""
+    """Matches flux7-mesh approvalView (proxy/handler.go)."""
 
     id: str
     agent_id: str
@@ -27,7 +27,7 @@ class ApprovalSummary(BaseModel):
 
 
 class TraceEntry(BaseModel):
-    """Matches agent-mesh trace.Entry (trace/store.go)."""
+    """Matches flux7-mesh trace.Entry (trace/store.go)."""
 
     trace_id: str = ""
     agent_id: str = ""
@@ -42,7 +42,7 @@ class TraceEntry(BaseModel):
 
 
 class GrantInfo(BaseModel):
-    """Matches agent-mesh grantView (proxy/handler.go)."""
+    """Matches flux7-mesh grantView (proxy/handler.go)."""
 
     id: str
     agent: str
@@ -53,7 +53,7 @@ class GrantInfo(BaseModel):
 
 
 class ApprovalDetail(ApprovalSummary):
-    """Matches agent-mesh approvalDetailView — enriched with context."""
+    """Matches flux7-mesh approvalDetailView — enriched with context."""
 
     recent_traces: list[TraceEntry] = Field(default_factory=list)
     active_grants: list[GrantInfo] = Field(default_factory=list)
@@ -75,7 +75,7 @@ class Decision(BaseModel):
 
 
 class ResolveRequest(BaseModel):
-    """POST body for agent-mesh /approvals/{id}/approve or /deny."""
+    """POST body for flux7-mesh /approvals/{id}/approve or /deny."""
 
     resolved_by: str
     reasoning: str

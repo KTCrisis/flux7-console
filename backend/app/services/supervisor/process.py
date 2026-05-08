@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class MeshProcess:
-    """Manages the agent-mesh subprocess lifecycle."""
+    """Manages the flux7-mesh subprocess lifecycle."""
 
     def __init__(self, config: MeshProcessConfig, mesh_url: str) -> None:
         self._config = config
@@ -25,17 +25,17 @@ class MeshProcess:
         return self._process is not None and self._process.poll() is None
 
     def spawn(self) -> bool:
-        """Start agent-mesh if not already running. Returns True on success."""
+        """Start flux7-mesh if not already running. Returns True on success."""
         if self.is_running:
             return True
 
         cmd = self._resolve_command()
         if cmd is None:
-            logger.error("agent-mesh binary not found: %s", self._config.command)
+            logger.error("flux7-mesh binary not found: %s", self._config.command)
             return False
 
         args = [cmd, "--config", self._config.config]
-        logger.info("spawning agent-mesh: %s", " ".join(args))
+        logger.info("spawning flux7-mesh: %s", " ".join(args))
 
         try:
             self._process = subprocess.Popen(
@@ -44,24 +44,24 @@ class MeshProcess:
                 stderr=subprocess.PIPE,
                 start_new_session=True,  # don't die with supervisor
             )
-            logger.info("agent-mesh started (pid=%d)", self._process.pid)
+            logger.info("flux7-mesh started (pid=%d)", self._process.pid)
             return True
         except OSError as e:
-            logger.error("failed to start agent-mesh: %s", e)
+            logger.error("failed to start flux7-mesh: %s", e)
             return False
 
     def stop(self) -> None:
-        """Stop the managed agent-mesh process."""
+        """Stop the managed flux7-mesh process."""
         if self._process is None:
             return
 
         if self.is_running:
-            logger.info("stopping agent-mesh (pid=%d)", self._process.pid)
+            logger.info("stopping flux7-mesh (pid=%d)", self._process.pid)
             self._process.terminate()
             try:
                 self._process.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                logger.warning("agent-mesh did not stop, killing")
+                logger.warning("flux7-mesh did not stop, killing")
                 self._process.kill()
                 self._process.wait()
 
@@ -81,7 +81,7 @@ class MeshProcess:
                 except Exception:
                     pass
             logger.warning(
-                "agent-mesh exited (code=%d)%s — restarting",
+                "flux7-mesh exited (code=%d)%s — restarting",
                 exit_code,
                 f": {stderr_tail.strip()}" if stderr_tail else "",
             )
@@ -91,7 +91,7 @@ class MeshProcess:
         return True
 
     def _resolve_command(self) -> str | None:
-        """Find the agent-mesh binary."""
+        """Find the flux7-mesh binary."""
         # Try as-is first (absolute path or in PATH)
         found = shutil.which(self._config.command)
         if found:
@@ -104,7 +104,7 @@ class MeshProcess:
         return None
 
     async def wait_ready(self, timeout: float = 10.0) -> bool:
-        """Wait until agent-mesh HTTP is responding."""
+        """Wait until flux7-mesh HTTP is responding."""
         import httpx
 
         deadline = asyncio.get_event_loop().time() + timeout
@@ -113,11 +113,11 @@ class MeshProcess:
                 try:
                     resp = await client.get(f"{self._mesh_url}/health")
                     if resp.status_code == 200:
-                        logger.info("agent-mesh is ready")
+                        logger.info("flux7-mesh is ready")
                         return True
                 except (httpx.ConnectError, httpx.ConnectTimeout):
                     pass
                 await asyncio.sleep(0.5)
 
-        logger.warning("agent-mesh did not become ready within %.0fs", timeout)
+        logger.warning("flux7-mesh did not become ready within %.0fs", timeout)
         return False

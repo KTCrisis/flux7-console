@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent7.dev/schemas/agent.schema.json",
+  "$id": "https://flux7.art/schemas/agent.schema.json",
   "title": "Agent Declaration",
   "description": "Declares an AI agent with identity, capabilities, constraints, and dependencies",
   "type": "object",

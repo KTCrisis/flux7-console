@@ -3,8 +3,8 @@ import { QueryProvider } from "@/providers/query";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "agent7 — AI Agent Governance",
-  description: "Governance dashboard for agent-mesh",
+  title: "flux7-console — AI Agent Governance",
+  description: "Governance dashboard for flux7-mesh",
 };
 
 export default function RootLayout({

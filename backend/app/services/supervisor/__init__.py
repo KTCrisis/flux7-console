@@ -1,4 +1,4 @@
-"""agent7 supervisor — rule-based approval agent for agent-mesh."""
+"""flux7-console supervisor — rule-based approval agent for flux7-mesh."""
 
 from .client import MeshClient
 from .config import MemoryConfig, MeshProcessConfig, OllamaConfig, SupervisorConfig, load_config

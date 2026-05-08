@@ -1,4 +1,4 @@
-"""Async HTTP client for the agent-mesh approval API."""
+"""Async HTTP client for the flux7-mesh approval API."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class MeshClientError(Exception):
-    """Raised on unexpected HTTP errors from agent-mesh."""
+    """Raised on unexpected HTTP errors from flux7-mesh."""
 
     def __init__(self, status_code: int, body: str) -> None:
         self.status_code = status_code
@@ -21,7 +21,7 @@ class MeshClientError(Exception):
 
 
 class MeshClient:
-    """Async client for agent-mesh approval endpoints."""
+    """Async client for flux7-mesh approval endpoints."""
 
     def __init__(self, base_url: str, agent_id: str) -> None:
         self._base_url = base_url.rstrip("/")
@@ -50,7 +50,7 @@ class MeshClient:
         return [ApprovalSummary.model_validate(item) for item in resp.json()]
 
     async def is_healthy(self) -> bool:
-        """Check if agent-mesh is responding."""
+        """Check if flux7-mesh is responding."""
         try:
             resp = await self._client.get("/health")
             return resp.status_code == 200
@@ -81,7 +81,7 @@ class MeshClient:
                 json=request.model_dump(),
             )
         except (httpx.ConnectError, httpx.ConnectTimeout):
-            logger.warning("cannot connect to agent-mesh for %s/%s", approval_id, action)
+            logger.warning("cannot connect to flux7-mesh for %s/%s", approval_id, action)
             return False
 
         if resp.status_code == 200:

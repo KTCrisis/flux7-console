@@ -1,4 +1,4 @@
-"""Memory integration via agent-mesh — store/recall decisions using memory-mcp-go."""
+"""Memory integration via flux7-mesh — store/recall decisions using memory-mcp-go."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class MemoryClient:
-    """Stores and recalls supervisor decisions via memory-mcp through agent-mesh."""
+    """Stores and recalls supervisor decisions via memory-mcp through flux7-mesh."""
 
     def __init__(self, config: MemoryConfig, mesh_url: str, agent_id: str) -> None:
         self._config = config
@@ -24,7 +24,7 @@ class MemoryClient:
         self._client = httpx.AsyncClient(timeout=10.0)
 
     async def store_decision(self, decision: Decision) -> bool:
-        """Store a decision in memory-mcp via agent-mesh."""
+        """Store a decision in memory-mcp via flux7-mesh."""
         if not self._config.store_decisions:
             return True
 
@@ -84,7 +84,7 @@ class MemoryClient:
         return decisions
 
     async def _call_tool(self, tool: str, params: dict) -> bool:
-        """Call a tool via agent-mesh HTTP API. Returns True on success."""
+        """Call a tool via flux7-mesh HTTP API. Returns True on success."""
         try:
             resp = await self._client.post(
                 f"{self._mesh_url}/tool/{tool}",
@@ -96,11 +96,11 @@ class MemoryClient:
             logger.debug("memory tool %s returned %d", tool, resp.status_code)
             return False
         except (httpx.ConnectError, httpx.ConnectTimeout):
-            logger.debug("cannot connect to agent-mesh for memory operation")
+            logger.debug("cannot connect to flux7-mesh for memory operation")
             return False
 
     async def _call_tool_with_result(self, tool: str, params: dict) -> str | None:
-        """Call a tool via agent-mesh and return the result text."""
+        """Call a tool via flux7-mesh and return the result text."""
         try:
             resp = await self._client.post(
                 f"{self._mesh_url}/tool/{tool}",

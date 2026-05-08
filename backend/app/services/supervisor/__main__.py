@@ -9,7 +9,7 @@ from .runner import SupervisorRunner
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="agent7 supervisor — rule-based approval agent")
+    parser = argparse.ArgumentParser(description="flux7-console supervisor — rule-based approval agent")
     parser.add_argument("--config", default="supervisor.yaml", help="Path to supervisor YAML config")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     args = parser.parse_args()

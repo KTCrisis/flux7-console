@@ -19,9 +19,9 @@ export default function MeshOverview() {
           <AlertTriangle className="h-6 w-6 text-destructive" />
         </div>
         <div>
-          <p className="text-sm font-medium">agent-mesh unreachable</p>
+          <p className="text-sm font-medium">flux7-mesh unreachable</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Make sure agent-mesh is running on localhost:9090
+            Make sure mesh7 is running on localhost:9090
           </p>
         </div>
       </div>
@@ -49,7 +49,7 @@ export default function MeshOverview() {
             <p className="text-xs text-muted-foreground mt-0.5">
               {health.tools} tools registered &middot; {health.traces.total} total calls
               {health.version && (
-                <> &middot; agent-mesh <span className="font-mono">{health.version}</span></>
+                <> &middot; flux7-mesh <span className="font-mono">{health.version}</span></>
               )}
             </p>
           )}

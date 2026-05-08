@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class SupervisorRunner:
-    """Polls agent-mesh for pending approvals and resolves them.
+    """Polls flux7-mesh for pending approvals and resolves them.
 
-    Optionally manages the agent-mesh process lifecycle and
+    Optionally manages the flux7-mesh process lifecycle and
     stores/recalls decisions via memory-mcp.
     """
 
@@ -60,7 +60,7 @@ class SupervisorRunner:
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, self.shutdown)
 
-        # Ensure agent-mesh is running
+        # Ensure flux7-mesh is running
         await self._ensure_mesh()
 
         # Recall previous decisions from memory
@@ -78,15 +78,15 @@ class SupervisorRunner:
             logger.info("supervisor stopped")
 
     async def _ensure_mesh(self) -> None:
-        """Ensure agent-mesh is running, spawn if needed."""
+        """Ensure flux7-mesh is running, spawn if needed."""
         # First check if mesh is already alive (e.g. launched by Claude)
         if await self._client.is_healthy():
-            logger.info("agent-mesh already running")
+            logger.info("flux7-mesh already running")
             self._mesh_alive = True
             return
 
         if self._mesh_process is None:
-            logger.info("agent-mesh not reachable, waiting (no process management configured)")
+            logger.info("flux7-mesh not reachable, waiting (no process management configured)")
             return
 
         if self._mesh_process.spawn():
@@ -145,11 +145,11 @@ class SupervisorRunner:
 
         if any_connected:
             if not self._mesh_alive:
-                logger.info("agent-mesh connected")
+                logger.info("flux7-mesh connected")
             self._mesh_alive = True
         elif self._mesh_alive:
             # Was alive, now down
-            logger.warning("agent-mesh connection lost")
+            logger.warning("flux7-mesh connection lost")
             self._mesh_alive = False
             await self._handle_mesh_down()
         elif not self._mesh_alive:
@@ -159,14 +159,14 @@ class SupervisorRunner:
         return results
 
     async def _handle_mesh_down(self) -> None:
-        """Handle agent-mesh being unreachable — restart if managed."""
+        """Handle flux7-mesh being unreachable — restart if managed."""
         if self._mesh_process is None:
             return
 
         if self._mesh_process.check_and_restart():
             if await self._mesh_process.wait_ready(timeout=15.0):
                 self._mesh_alive = True
-                logger.info("agent-mesh recovered")
+                logger.info("flux7-mesh recovered")
 
     async def _process_batch(self, approvals: list[ApprovalSummary]) -> None:
         """Process approvals concurrently with a semaphore."""

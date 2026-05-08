@@ -1,4 +1,4 @@
-# agent-mesh config for supervisor demo
+# flux7-mesh config for supervisor demo
 # All filesystem writes require approval — supervisor will handle them
 
 port: 9090

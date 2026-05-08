@@ -117,7 +117,7 @@ class RuleEvaluator:
                 approval, start,
                 decision="escalated",
                 rule_matched="injection-risk",
-                reasoning="injection risk detected by agent-mesh",
+                reasoning="injection risk detected by flux7-mesh",
                 confidence=1.0,
             )
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent7.dev/schemas/flow.schema.json",
+  "$id": "https://flux7.art/schemas/flow.schema.json",
   "title": "Flow Declaration",
   "description": "Declares an agent workflow as an ordered chain of steps",
   "type": "object",

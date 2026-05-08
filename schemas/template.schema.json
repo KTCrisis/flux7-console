@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agent7.dev/schemas/template.schema.json",
+  "$id": "https://flux7.art/schemas/template.schema.json",
   "title": "Policy Template",
   "description": "Reusable governance rules for agents or flows",
   "type": "object",

@@ -52,16 +52,16 @@ class OllamaConfig(BaseModel):
 
 
 class MeshProcessConfig(BaseModel):
-    """Configuration for auto-launching agent-mesh when it's down."""
+    """Configuration for auto-launching flux7-mesh when it's down."""
 
     enabled: bool = False
-    command: str = "agent-mesh"
+    command: str = "mesh7"
     config: str = "config.yaml"
     restart_delay: float = 5.0  # seconds before respawn after crash
 
 
 class MemoryConfig(BaseModel):
-    """Configuration for memory-mcp integration via agent-mesh."""
+    """Configuration for memory-mcp integration via flux7-mesh."""
 
     enabled: bool = False
     store_decisions: bool = True  # store each decision in memory

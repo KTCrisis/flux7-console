@@ -1,4 +1,4 @@
-"""Tests for the agent-mesh HTTP client."""
+"""Tests for the flux7-mesh HTTP client."""
 
 import pytest
 import httpx

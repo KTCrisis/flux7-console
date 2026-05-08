@@ -112,7 +112,7 @@ export default function OtelTracesPage() {
           {error.message}
           <p className="mt-2 text-xs text-muted-foreground">
             OTEL export not enabled. Check <code className="font-mono">config.yaml</code>{" "}
-            and restart agent-mesh.
+            and restart mesh7.
           </p>
         </div>
       )}

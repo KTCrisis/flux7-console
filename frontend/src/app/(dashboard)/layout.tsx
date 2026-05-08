@@ -32,7 +32,7 @@ export default function DashboardLayout({
               <div className="h-7 w-7 rounded-md bg-primary/15 flex items-center justify-center">
                 <Radio className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-sm font-semibold tracking-tight">agent7</span>
+              <span className="text-sm font-semibold tracking-tight">flux7-console</span>
             </Link>
             <nav className="flex items-center gap-1">
               {nav.map(({ href, label, icon: Icon }) => (
