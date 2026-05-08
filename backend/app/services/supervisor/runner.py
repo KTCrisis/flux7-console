@@ -1,4 +1,4 @@
-"""Supervisor main loop — poll, evaluate, resolve, log, manage mesh lifecycle."""
+"""Supervisor main loop — poll, evaluate, resolve, log."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from .evaluator import RuleEvaluator
 from .logger import DecisionLogger
 from .memory import MemoryClient
 from .models import ApprovalSummary, ResolveRequest
-from .process import MeshProcess
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +19,8 @@ logger = logging.getLogger(__name__)
 class SupervisorRunner:
     """Polls flux7-mesh for pending approvals and resolves them.
 
-    Optionally manages the flux7-mesh process lifecycle and
-    stores/recalls decisions via memory-mcp.
+    Expects flux7-mesh to be running independently (via mesh7 serve).
+    Optionally stores/recalls decisions via flux7-memory.
     """
 
     def __init__(self, config: SupervisorConfig) -> None:
@@ -34,12 +33,6 @@ class SupervisorRunner:
         self._semaphore = asyncio.Semaphore(10)
         self._mesh_alive = False
 
-        # Process manager (optional)
-        self._mesh_process: MeshProcess | None = None
-        if config.mesh_process.enabled:
-            self._mesh_process = MeshProcess(config.mesh_process, config.mesh_url)
-
-        # Memory client (optional)
         self._memory: MemoryClient | None = None
         if config.memory.enabled:
             self._memory = MemoryClient(config.memory, config.mesh_url, config.agent_id)
@@ -55,15 +48,11 @@ class SupervisorRunner:
             self._config.tool_scopes or ["*"],
         )
 
-        # Register signal handlers for graceful shutdown
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(sig, self.shutdown)
 
-        # Ensure flux7-mesh is running
-        await self._ensure_mesh()
-
-        # Recall previous decisions from memory
+        await self._wait_for_mesh()
         await self._recall_memory()
 
         try:
@@ -74,27 +63,25 @@ class SupervisorRunner:
             if self._memory:
                 await self._memory.close()
             self._logger.close()
-            # Don't stop mesh process — it should persist after supervisor stops
             logger.info("supervisor stopped")
 
-    async def _ensure_mesh(self) -> None:
-        """Ensure flux7-mesh is running, spawn if needed."""
-        # First check if mesh is already alive (e.g. launched by Claude)
+    async def _wait_for_mesh(self) -> None:
+        """Wait until flux7-mesh (mesh7 serve) is reachable."""
         if await self._client.is_healthy():
-            logger.info("flux7-mesh already running")
+            logger.info("flux7-mesh connected")
             self._mesh_alive = True
             return
 
-        if self._mesh_process is None:
-            logger.info("flux7-mesh not reachable, waiting (no process management configured)")
-            return
-
-        if self._mesh_process.spawn():
-            if await self._mesh_process.wait_ready(timeout=15.0):
+        logger.info("waiting for flux7-mesh (mesh7 serve) ...")
+        while not self._shutdown:
+            await asyncio.sleep(self._config.poll_interval)
+            if await self._client.is_healthy():
+                logger.info("flux7-mesh connected")
                 self._mesh_alive = True
+                return
 
     async def _recall_memory(self) -> None:
-        """Recall recent decisions from memory-mcp on startup."""
+        """Recall recent decisions from flux7-memory on startup."""
         if self._memory is None or not self._mesh_alive:
             return
 
@@ -135,7 +122,6 @@ class SupervisorRunner:
         for scope in scopes:
             approvals = await self._client.list_pending(scope)
             if approvals is None:
-                # Connection failed for this scope
                 continue
             any_connected = True
             for a in approvals:
@@ -145,28 +131,13 @@ class SupervisorRunner:
 
         if any_connected:
             if not self._mesh_alive:
-                logger.info("flux7-mesh connected")
+                logger.info("flux7-mesh reconnected")
             self._mesh_alive = True
         elif self._mesh_alive:
-            # Was alive, now down
-            logger.warning("flux7-mesh connection lost")
+            logger.warning("flux7-mesh connection lost — waiting for recovery")
             self._mesh_alive = False
-            await self._handle_mesh_down()
-        elif not self._mesh_alive:
-            # Still down — try to recover periodically
-            await self._handle_mesh_down()
 
         return results
-
-    async def _handle_mesh_down(self) -> None:
-        """Handle flux7-mesh being unreachable — restart if managed."""
-        if self._mesh_process is None:
-            return
-
-        if self._mesh_process.check_and_restart():
-            if await self._mesh_process.wait_ready(timeout=15.0):
-                self._mesh_alive = True
-                logger.info("flux7-mesh recovered")
 
     async def _process_batch(self, approvals: list[ApprovalSummary]) -> None:
         """Process approvals concurrently with a semaphore."""
@@ -203,13 +174,11 @@ class SupervisorRunner:
                 if ok:
                     logger.info("denied %s (%s) — %s", summary.id, summary.tool, decision.reasoning)
             else:
-                # Escalated — leave for human, remember to skip next poll
                 self._seen_escalated.add(summary.id)
                 logger.info("escalated %s (%s) — %s", summary.id, summary.tool, decision.reasoning)
 
             self._logger.log(decision)
 
-            # Store in memory-mcp
             if self._memory:
                 await self._memory.store_decision(decision)
 

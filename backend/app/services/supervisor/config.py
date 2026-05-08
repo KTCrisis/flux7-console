@@ -51,15 +51,6 @@ class OllamaConfig(BaseModel):
     timeout: float = 30.0  # seconds
 
 
-class MeshProcessConfig(BaseModel):
-    """Configuration for auto-launching flux7-mesh when it's down."""
-
-    enabled: bool = False
-    command: str = "mesh7"
-    config: str = "config.yaml"
-    restart_delay: float = 5.0  # seconds before respawn after crash
-
-
 class MemoryConfig(BaseModel):
     """Configuration for memory-mcp integration via flux7-mesh."""
 
@@ -82,7 +73,6 @@ class SupervisorConfig(BaseModel):
     project_dirs: list[str] = Field(default_factory=list)
     decision_log: str = "supervisor-decisions.jsonl"
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
-    mesh_process: MeshProcessConfig = Field(default_factory=MeshProcessConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
 
     @field_validator("poll_interval", mode="before")
