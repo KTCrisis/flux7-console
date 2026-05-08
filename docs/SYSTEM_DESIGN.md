@@ -190,10 +190,15 @@ Level 0: Policy engine (agent-mesh)
          Static rules. Instant. No judgment.
          allow reads, deny deletes, require approval for sends.
 
-Level 1: Supervisor (in agent-mesh)
-         Dynamic evaluation. Fast. Bounded judgment.
-         Checks mem7 for past decisions. Auto-approves routine patterns.
-         Escalates unknowns to Level 2.
+Level 1: Built-in supervisor (in agent-mesh, Go)
+         mem7 lookup. ~100ms. Pattern matching only.
+         Checks past decisions: 3+ approvals, 0 rejections → auto-approve.
+         Escalates unknowns to Level 1+.
+
+Level 1+: External supervisor (in agent7, Python)
+          Rule engine + Ollama LLM. ~2s rules, ~20s LLM. Bounded judgment.
+          Handles novel cases, complex conditions, injection detection.
+          Escalates unknowns to Level 2.
 
 Level 2: Human
          Full judgment. Slow. Expensive attention.
@@ -201,16 +206,14 @@ Level 2: Human
          Decision written back to mem7 via agent-mesh.
 ```
 
-> **On the word "supervisor".** Level 1 here is an *implementation* of the
-> [supervisor protocol](https://github.com/KTCrisis/agent-mesh/blob/main/docs/supervisor-protocol.md)
-> that agent-mesh already exposes for external resolvers. The `supervisor/`
-> package inside the agent-mesh repo is a different concern — it handles
-> content redaction and prompt-injection detection on the protocol's
-> outbound payloads (`RedactParams`, `DetectInjection`). Phase 2 is a new
-> resolver implementing the protocol that consults mem7 before deciding —
-> not a new concept, not a renamed package. Each project keeps a single
-> meaning for "supervisor": agent-mesh exposes the protocol, the resolver
-> implements it.
+> **Two supervisor layers.** Level 1 is built into agent-mesh — a `MemoryReader`
+> that queries mem7 before the approval queue. It's a pre-filter, not a full
+> resolver. Level 1+ is the external Python supervisor in agent7 that implements
+> the [supervisor protocol](https://github.com/KTCrisis/agent-mesh/blob/main/docs/supervisor-protocol.md)
+> — it polls pending approvals and resolves them with rule evaluation + LLM.
+> The `supervisor/` package inside agent-mesh handles content redaction and
+> injection detection on the protocol's outbound payloads (`RedactParams`,
+> `DetectInjection`) — a separate concern from both layers.
 
 ### Supervisor decision logic (pseudocode)
 
@@ -322,30 +325,34 @@ Anthropic cloud (harness, sandbox, multi-agent orchestration)
 
 ## Implementation priorities
 
-### Phase 1: Decision write path (agent-mesh → mem7)
+### Phase 1: Decision write path (agent-mesh → mem7) ✓
 
-The highest-leverage integration. When an approval resolves in agent-mesh, store the decision in mem7 if a mem7 server is configured.
+*Shipped in agent-mesh v0.8.7.*
 
-**agent-mesh changes:**
-- New optional config field: `memory_server: http://localhost:9070` (+ optional token)
-- In the approval resolve handler: POST to mem7 `/rpc` with `memory_store`
-- Key format: `decision.<tool>.<timestamp>`
-- Tags: `[decision, approval|rejection, <tool_category>]`
-- Value: human-readable summary of what was approved/rejected and by whom
-- Graceful degradation: if mem7 is down, log warning, don't block the approval
+When an approval resolves in agent-mesh, the decision is stored in mem7 if configured.
 
-**Estimated effort:** 50-100 lines Go in agent-mesh.
+- Config field: `memory.url` + optional `memory.token`
+- On resolve: async POST to mem7 `/rpc` with `memory_store`
+- Key format: `decision.<tool>.<approval_id>`
+- Tags: `[decision, approved|denied, <tool>, agent:<id>]`
+- Value: human-readable summary — "approved by X — agent:Y tool:Z reason:..."
+- Metrics: `agent_mesh_mem7_writes_{attempted,succeeded,failed}_total`
+- Graceful degradation: failing mem7 never blocks approvals
 
-### Phase 2: Supervisor reads mem7
+### Phase 2: Built-in supervisor reads mem7 ✓
 
-The supervisor (currently in agent7, target: in agent-mesh) queries mem7 before deciding.
+*Shipped in agent-mesh v0.9.1.*
 
-**agent-mesh changes:**
-- Supervisor mode queries mem7 `memory_context` with tool name + agent + tags=["decision"]
-- Decision logic: count past approvals/rejections, apply thresholds
-- Auto-approve if pattern is clear, escalate if ambiguous
+agent-mesh queries mem7 before submitting to the approval queue. This is the built-in Level 1 supervisor — a pre-filter that handles routine patterns.
 
-**Estimated effort:** ~200 lines Go.
+- `MemoryReader` queries mem7 `memory_search` with tool name + agent + tags=["decision"]
+- Counts past approvals/rejections from search results
+- Auto-approve if >= `min_approvals` (default 3) with 0 rejections
+- Escalate if ambiguous, rejected, or mem7 is down
+- Auto-approved decisions traced as `supervisor:mem7` and written back to mem7
+- Config: `supervisor.auto_approve` (default true), `supervisor.min_approvals` (default 3)
+
+**Complements the external Python supervisor** (in agent7): the built-in handles routine patterns (~100ms); the external supervisor handles novel cases with rule engine + Ollama LLM evaluation (~20s). Both escalate unknowns to humans.
 
 ### Phase 3: agent7 reads mem7 via SDK
 
