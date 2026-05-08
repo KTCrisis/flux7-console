@@ -1,6 +1,6 @@
 # agent7
 
-Management plane for [agent-mesh](https://github.com/KTCrisis/agent-mesh) — a local dashboard and
+Management plane for [agent-mesh](https://github.com/KTCrisis/flux7-mesh) — a local dashboard and
 supervisor service to observe, approve and govern agents running behind the mesh sidecar.
 
 agent7 is the control side. agent-mesh is the runtime enforcement side. This repo contains
@@ -58,11 +58,11 @@ The frontend also connects directly to mem7 (JSON-RPC on port 9070) for the memo
 
 Prerequisites:
 
-- [agent-mesh](https://github.com/KTCrisis/agent-mesh) running on `localhost:9090`
+- [agent-mesh](https://github.com/KTCrisis/flux7-mesh) running on `localhost:9090`
 - Node.js 20+
 - Python 3.12+
 - Optional: [Ollama](https://ollama.com) running locally for the supervisor LLM fallback
-- Optional: [mem7](https://github.com/KTCrisis/mem7) in serve mode on `localhost:9070` for the memory view
+- Optional: [mem7](https://github.com/KTCrisis/flux7-memory) in serve mode on `localhost:9070` for the memory view
 
 ### Dashboard
 
@@ -113,6 +113,6 @@ pytest tests/supervisor
 
 ## Related
 
-- [agent-mesh](https://github.com/KTCrisis/agent-mesh) — runtime enforcement sidecar
-- [mem7](https://github.com/KTCrisis/mem7) — governed memory substrate for multi-agent systems
+- [agent-mesh](https://github.com/KTCrisis/flux7-mesh) — runtime enforcement sidecar
+- [mem7](https://github.com/KTCrisis/flux7-memory) — governed memory substrate for multi-agent systems
 - [event7](https://github.com/KTCrisis/event7) — sibling project for data contract governance
