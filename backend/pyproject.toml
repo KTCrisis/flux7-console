@@ -1,5 +1,5 @@
 [project]
-name = "agent7-backend"
+name = "flux7-console-backend"
 version = "0.1.0"
 
 [tool.pytest.ini_options]
