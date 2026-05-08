@@ -1,9 +1,9 @@
-# agent7
+# flux7-console
 
-Management plane for [agent-mesh](https://github.com/KTCrisis/flux7-mesh) — a local dashboard and
+Management plane for [flux7-mesh](https://github.com/KTCrisis/flux7-mesh) — a local dashboard and
 supervisor service to observe, approve and govern agents running behind the mesh sidecar.
 
-agent7 is the control side. agent-mesh is the runtime enforcement side. This repo contains
+flux7-console is the control side. flux7-mesh is the runtime enforcement side. This repo contains
 what currently runs locally; the broader governance platform (registry, scoring, dependency
 graph, lifecycle) is built incrementally.
 
@@ -11,16 +11,16 @@ graph, lifecycle) is built incrementally.
 
 Early stage. Two pieces are operational:
 
-- **supervisor** — Python service that watches `agent-mesh` approval queue, evaluates pending
+- **supervisor** — Python service that watches `flux7-mesh` approval queue, evaluates pending
   tool calls against declarative rules, and either auto-resolves or escalates. Falls back to
   a local Ollama model for ambiguous cases. Ships with a process manager and memory integration.
 - **dashboard** — Next.js 16 + TanStack Query frontend with mesh-oriented routes:
   - `/mesh` — health, connected MCP servers, tool inventory
-  - `/mesh/traces` — trace browser fed by agent-mesh `/traces`
+  - `/mesh/traces` — trace browser fed by flux7-mesh `/traces`
   - `/mesh/sessions` — session list and drill-down
   - `/mesh/approvals` — pending approvals, approve/deny
-  - `/mesh/otel` — OTEL waterfall view fed by agent-mesh `/otel-traces` (v0.6.1+)
-  - `/mesh/memory` — mem7 memory browser (search, filter by agent, detail view)
+  - `/mesh/otel` — OTEL waterfall view fed by flux7-mesh `/otel-traces` (v0.6.1+)
+  - `/mesh/memory` — flux7-memory memory browser (search, filter by agent, detail view)
 
 Everything else in the tree (`backend/app/api`, `governance-engine/`, `schemas/`, `examples/`)
 is scaffolding for future phases.
@@ -29,7 +29,7 @@ is scaffolding for future phases.
 
 ```
 ┌──────────────────────┐        ┌──────────────────────┐
-│  agent7 frontend     │        │  agent7 supervisor   │
+│  flux7-console frontend     │        │  flux7-console supervisor   │
 │  Next.js dashboard   │        │  rule-based approver │
 │  localhost:3000      │        │  + Ollama fallback   │
 └──────────┬───────────┘        └──────────┬───────────┘
@@ -38,31 +38,31 @@ is scaffolding for future phases.
            │   /otel-traces, /approval)    │   /approval/resolve)
            ▼                               ▼
 ┌──────────────────────────────────────────────────────┐
-│                  agent-mesh (Go)                     │
+│                  flux7-mesh (Go)                     │
 │  policy engine · rate limits · approvals · traces    │
 │              localhost:9090                          │
 └──────────────────────────────────────────────────────┘
            ▲
            │  JSON-RPC (/rpc)
 ┌──────────┴───────────┐
-│       mem7 (Go)      │
+│       flux7-memory (Go)      │
 │  memory substrate    │
 │  localhost:9070      │
 └──────────────────────┘
 ```
 
-Both sides talk to agent-mesh over plain HTTP. No direct coupling between frontend and supervisor.
-The frontend also connects directly to mem7 (JSON-RPC on port 9070) for the memory debug view.
+Both sides talk to flux7-mesh over plain HTTP. No direct coupling between frontend and supervisor.
+The frontend also connects directly to flux7-memory (JSON-RPC on port 9070) for the memory debug view.
 
 ## Local setup
 
 Prerequisites:
 
-- [agent-mesh](https://github.com/KTCrisis/flux7-mesh) running on `localhost:9090`
+- [flux7-mesh](https://github.com/KTCrisis/flux7-mesh) running on `localhost:9090`
 - Node.js 20+
 - Python 3.12+
 - Optional: [Ollama](https://ollama.com) running locally for the supervisor LLM fallback
-- Optional: [mem7](https://github.com/KTCrisis/flux7-memory) in serve mode on `localhost:9070` for the memory view
+- Optional: [flux7-memory](https://github.com/KTCrisis/flux7-memory) in serve mode on `localhost:9070` for the memory view
 
 ### Dashboard
 
@@ -73,7 +73,7 @@ npm run dev
 # http://localhost:3000
 ```
 
-The dashboard proxies to `http://localhost:9090` (agent-mesh) and `http://localhost:9070` (mem7)
+The dashboard proxies to `http://localhost:9090` (flux7-mesh) and `http://localhost:9070` (flux7-memory)
 by default. Adjust in `frontend/next.config.ts` if they listen elsewhere.
 
 ### Supervisor
@@ -113,6 +113,6 @@ pytest tests/supervisor
 
 ## Related
 
-- [agent-mesh](https://github.com/KTCrisis/flux7-mesh) — runtime enforcement sidecar
-- [mem7](https://github.com/KTCrisis/flux7-memory) — governed memory substrate for multi-agent systems
+- [flux7-mesh](https://github.com/KTCrisis/flux7-mesh) — runtime enforcement sidecar
+- [flux7-memory](https://github.com/KTCrisis/flux7-memory) — governed memory substrate for multi-agent systems
 - [event7](https://github.com/KTCrisis/event7) — sibling project for data contract governance
