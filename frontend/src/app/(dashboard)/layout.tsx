@@ -18,6 +18,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Bot,
+  Cpu,
 } from "lucide-react";
 import { useHealth, useApprovals } from "@/lib/hooks/use-mesh";
 
@@ -38,6 +39,7 @@ const navGroups: NavGroup[] = [
     label: "",
     items: [
       { href: "/mesh", label: "Overview", icon: LayoutDashboard },
+      { href: "/mesh/agents", label: "Agents", icon: Cpu },
     ],
   },
   {
