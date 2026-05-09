@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldAlert,
+  Shield,
 } from "lucide-react";
 
 export default function ApprovalsPage() {
@@ -49,11 +50,16 @@ export default function ApprovalsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold">Approvals</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {pending.length} pending &middot; {resolved.length} resolved
-        </p>
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+          <Shield className="h-4 w-4 text-amber-400" />
+        </div>
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight">Approvals</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {pending.length} pending &middot; {resolved.length} resolved
+          </p>
+        </div>
       </div>
 
       {/* Pending */}

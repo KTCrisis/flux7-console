@@ -6,6 +6,7 @@ import { flattenOtlp, type FlatSpan } from "@/lib/api/mesh";
 import { PolicyBadge } from "@/components/ui/policy-badge";
 import { OtelStatusBadge } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
+import { GitBranch } from "lucide-react";
 
 export default function OtelTracesPage() {
   const [filterAgent, setFilterAgent] = useState("");
@@ -54,20 +55,25 @@ export default function OtelTracesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">OTEL Traces</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            OTLP JSON spans · {filtered.length} spans
-            {totalInputTokens + totalOutputTokens > 0 && (
-              <>
-                {" · "}
-                <span className="tabular-nums">
-                  {totalInputTokens} / {totalOutputTokens} tokens
-                </span>
-              </>
-            )}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
+            <GitBranch className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">OTEL Traces</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              OTLP JSON spans · {filtered.length} spans
+              {totalInputTokens + totalOutputTokens > 0 && (
+                <>
+                  {" · "}
+                  <span className="tabular-nums">
+                    {totalInputTokens} / {totalOutputTokens} tokens
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
         </div>
       </div>
 

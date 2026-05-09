@@ -32,12 +32,17 @@ export default function GrantsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Grants</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {grants?.length ?? 0} active grant{(grants?.length ?? 0) !== 1 ? "s" : ""}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+            <Key className="h-4 w-4 text-amber-400" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Grants</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {grants?.length ?? 0} active grant{(grants?.length ?? 0) !== 1 ? "s" : ""}
+            </p>
+          </div>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}

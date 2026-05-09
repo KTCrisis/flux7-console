@@ -80,8 +80,8 @@ export default function SupervisorPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-lg bg-indigo-500/15 flex items-center justify-center">
-          <ShieldCheck className="h-4 w-4 text-indigo-400" />
+        <div className="h-8 w-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+          <ShieldCheck className="h-4 w-4 text-amber-400" />
         </div>
         <div>
           <h1 className="text-lg font-semibold">Supervisor</h1>
@@ -127,7 +127,7 @@ export default function SupervisorPage() {
           {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-lg border border-border bg-card overflow-hidden">
-              <div className="h-0.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.4)]" />
+              <div className="h-0.5 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
               <div className="p-4">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</span>
                 <div className="mt-1 flex items-center gap-2">
@@ -191,9 +191,9 @@ export default function SupervisorPage() {
             <div className="mt-3 flex items-center gap-3 text-xs font-mono overflow-x-auto">
               <span className="shrink-0 rounded border border-border bg-secondary/50 px-2.5 py-1.5">L0 mesh7 policy</span>
               <span className="text-muted-foreground shrink-0">→</span>
-              <span className="shrink-0 rounded border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 px-2.5 py-1.5">
+              <span className="shrink-0 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400 px-2.5 py-1.5">
                 L1 supervisor
-                <span className="ml-1.5 text-[10px] text-indigo-400/60">
+                <span className="ml-1.5 text-[10px] text-amber-400/60">
                   ({stats.supervisors.map((s) => s.split(":")[1] || s).join(", ")})
                 </span>
               </span>
@@ -210,7 +210,7 @@ export default function SupervisorPage() {
               <div className="mt-2 space-y-1">
                 {stats.agentsCovered.map((a) => (
                   <div key={a} className="flex items-center gap-2 text-sm">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
                     <span className="font-mono text-xs">{a}</span>
                   </div>
                 ))}
@@ -229,7 +229,7 @@ export default function SupervisorPage() {
                       <span className="font-mono text-xs text-muted-foreground w-48 truncate shrink-0">{tool}</span>
                       <div className="flex-1 h-4 rounded-sm bg-secondary/30 overflow-hidden">
                         <div
-                          className="h-full rounded-sm bg-indigo-500/30"
+                          className="h-full rounded-sm bg-amber-500/30"
                           style={{ width: `${pct}%` }}
                         />
                       </div>

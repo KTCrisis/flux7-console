@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   ShieldAlert,
+  LayoutDashboard,
 } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
 import { PolicyBadge } from "@/components/ui/policy-badge";
@@ -59,9 +60,12 @@ export default function MeshOverview() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between">
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
+          <LayoutDashboard className="h-4 w-4 text-primary" />
+        </div>
         <div>
-          <h2 className="text-xl font-semibold">Overview</h2>
+          <h1 className="text-lg font-semibold tracking-tight">Overview</h1>
           {health && (
             <p className="text-xs text-muted-foreground mt-0.5">
               {health.tools} tools registered &middot; {health.traces.total} total calls

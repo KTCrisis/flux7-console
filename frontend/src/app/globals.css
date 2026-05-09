@@ -1,25 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #060a0f;
-  --color-foreground: #e2e8f0;
-  --color-card: #0a0f18;
-  --color-card-foreground: #e2e8f0;
-  --color-popover: #0a0f18;
-  --color-popover-foreground: #e2e8f0;
+  --color-background: #04080d;
+  --color-foreground: #c8d6e5;
+  --color-card: #0b1120;
+  --color-card-foreground: #c8d6e5;
+  --color-popover: #0b1120;
+  --color-popover-foreground: #c8d6e5;
   --color-primary: #22d3ee;
-  --color-primary-foreground: #060a0f;
-  --color-secondary: #0f1623;
-  --color-secondary-foreground: #e2e8f0;
-  --color-muted: #1a2235;
-  --color-muted-foreground: #64748b;
-  --color-accent: #1a2235;
-  --color-accent-foreground: #e2e8f0;
+  --color-primary-foreground: #04080d;
+  --color-secondary: #0e1a2e;
+  --color-secondary-foreground: #c8d6e5;
+  --color-muted: #162036;
+  --color-muted-foreground: #5a7194;
+  --color-accent: #162036;
+  --color-accent-foreground: #c8d6e5;
   --color-destructive: #f43f5e;
-  --color-destructive-foreground: #e2e8f0;
-  --color-border: #1a2438;
-  --color-input: #1a2438;
+  --color-destructive-foreground: #c8d6e5;
+  --color-border: #1a2d4a;
+  --color-input: #1a2d4a;
   --color-ring: #22d3ee;
+  --color-surface: #081018;
   --radius: 0.5rem;
   --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "JetBrains Mono", monospace;
@@ -30,14 +31,30 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   background-image:
-    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(34, 211, 238, 0.04) 0%, transparent 100%),
-    radial-gradient(circle at 1px 1px, rgba(100, 116, 139, 0.06) 1px, transparent 0);
-  background-size: 100% 100%, 24px 24px;
+    radial-gradient(ellipse 60% 40% at 15% -5%, rgba(34, 211, 238, 0.06) 0%, transparent 100%),
+    radial-gradient(ellipse 40% 30% at 85% 110%, rgba(99, 102, 241, 0.03) 0%, transparent 100%),
+    radial-gradient(circle at 1px 1px, rgba(100, 140, 180, 0.08) 1px, transparent 0);
+  background-size: 100% 100%, 100% 100%, 24px 24px;
   background-attachment: fixed;
 }
 
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(100, 140, 180, 0.015) 2px,
+    rgba(100, 140, 180, 0.015) 4px
+  );
+}
+
 ::selection {
-  background-color: rgba(34, 211, 238, 0.2);
+  background-color: rgba(34, 211, 238, 0.25);
   color: #e2e8f0;
 }
 

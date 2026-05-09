@@ -6,6 +6,7 @@ import { timeAgo } from "@/lib/utils";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { TimeRangeToggle, filterByTimeRange, type TimeRangeMs } from "@/components/ui/time-range";
 import Link from "next/link";
+import { Users } from "lucide-react";
 
 export default function SessionsPage() {
   const [timeRange, setTimeRange] = useState<TimeRangeMs>(0);
@@ -14,12 +15,17 @@ export default function SessionsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Sessions</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {sessions.length} session{sessions.length !== 1 ? "s" : ""}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
+            <Users className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Sessions</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {sessions.length} session{sessions.length !== 1 ? "s" : ""}
+            </p>
+          </div>
         </div>
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
       </div>

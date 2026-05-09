@@ -8,6 +8,7 @@ import { StatusCode } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { TimeRangeToggle, filterByTimeRange, type TimeRangeMs } from "@/components/ui/time-range";
+import { Activity } from "lucide-react";
 import Link from "next/link";
 
 export default function TracesPage() {
@@ -37,9 +38,12 @@ export default function TracesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between">
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
+          <Activity className="h-4 w-4 text-primary" />
+        </div>
         <div>
-          <h2 className="text-xl font-semibold">Traces</h2>
+          <h1 className="text-lg font-semibold tracking-tight">Traces</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             {filtered.length} of {traces.length} entries
           </p>

@@ -102,7 +102,7 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-20 flex flex-col bg-card/80 backdrop-blur-xl border-r border-border transition-[width] duration-200",
+          "fixed inset-y-0 left-0 z-20 flex flex-col bg-[#060c16]/95 backdrop-blur-xl border-r border-border transition-[width] duration-200",
           collapsed ? "w-14" : "w-52"
         )}
       >
@@ -144,7 +144,7 @@ export default function DashboardLayout({
           {navGroups.map((group) => (
             <div key={group.label || "_root"}>
               {group.label && !collapsed && (
-                <span className="px-2 mb-1.5 block text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
+                <span className="px-2 mb-1.5 block text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-[0.2em] font-mono">
                   {group.label}
                 </span>
               )}
