@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Activity, Shield, LayoutDashboard, Radio, GitBranch, Users, Brain, Wrench, Key } from "lucide-react";
+import { Activity, Shield, LayoutDashboard, Radio, GitBranch, Users, Brain, Wrench, Key, ExternalLink } from "lucide-react";
 import { useHealth, useApprovals } from "@/lib/hooks/use-mesh";
 
 const nav = [
@@ -89,7 +89,17 @@ export default function DashboardLayout({
               })}
             </nav>
           </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground font-mono">
+            <a
+              href="https://docs.flux7.art"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors font-sans text-xs"
+            >
+              Docs
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <span className="text-border">|</span>
             {health ? (
               <>
                 <span className="flex items-center gap-1.5">
