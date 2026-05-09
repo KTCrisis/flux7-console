@@ -1,58 +1,67 @@
 # flux7-console
 
-Management plane for [flux7-mesh](https://github.com/KTCrisis/flux7-mesh) — a local dashboard and
-supervisor service to observe, approve and govern agents running behind the mesh sidecar.
+Governance dashboard for [flux7-mesh](https://github.com/KTCrisis/flux7-mesh) — observe, approve
+and govern agents running behind the mesh sidecar.
 
-flux7-console is the control side. flux7-mesh is the runtime enforcement side. This repo contains
-what currently runs locally; the broader governance platform (registry, scoring, dependency
-graph, lifecycle) is built incrementally.
+flux7-console is the operator UI (L2 human layer). flux7-mesh is runtime enforcement (L0 policy).
+An optional L1 supervisor like [flux7-supervisor](https://github.com/KTCrisis/flux7-supervisor)
+sits in between for automated evaluation.
 
 ## Status
 
-Early stage. Two pieces are operational:
+The **dashboard** (Next.js 16 + TanStack Query) is operational with 10 routes:
 
-- **supervisor** — Python service that watches `flux7-mesh` approval queue, evaluates pending
-  tool calls against declarative rules, and either auto-resolves or escalates. Falls back to
-  a local Ollama model for ambiguous cases. Ships with a process manager and memory integration.
-- **dashboard** — Next.js 16 + TanStack Query frontend with mesh-oriented routes:
-  - `/mesh` — health, connected MCP servers, tool inventory
-  - `/mesh/traces` — trace browser fed by flux7-mesh `/traces`
-  - `/mesh/sessions` — session list and drill-down
-  - `/mesh/approvals` — pending approvals, approve/deny
-  - `/mesh/otel` — OTEL waterfall view fed by flux7-mesh `/otel-traces` (v0.6.1+)
-  - `/mesh/memory` — flux7-memory memory browser (search, filter by agent, detail view)
+| Route | Purpose |
+|-------|---------|
+| `/mesh` | Overview — KPIs, inline pending approvals, recent activity, denials |
+| `/mesh/traces` | Trace browser with time range + agent/tool/policy filters |
+| `/mesh/sessions` | Session list with time range filter, drill-down timeline |
+| `/mesh/otel` | OTLP spans with waterfall bars, token counts |
+| `/mesh/approvals` | Pending approvals (expand + approve/deny), resolution history |
+| `/mesh/supervisor` | L1 supervisor status — derived from mesh7 traces, implementation-agnostic |
+| `/mesh/grants` | Active grants with TTL, create/revoke |
+| `/mesh/tools` | Tool catalog (MCP/CLI/REST), MCP server status cards |
+| `/mesh/memory` | Memory browser — search, store, edit, delete via mem7 |
 
-Everything else in the tree (`backend/app/api`, `governance-engine/`, `schemas/`, `examples/`)
-is scaffolding for future phases.
+### Design
+
+Terminal Noir — deep blue-black palette, dot-grid background, JetBrains Mono (data) + Outfit (UI),
+cyan glow accents, glassmorphism sidebar with gradient glow line. Collapsible sidebar nav grouped
+by function: Observe (Traces, Sessions, OTEL), Govern (Approvals, Supervisor, Grants, Tools),
+Storage (Memory).
 
 ## Architecture
 
 ```
-┌──────────────────────┐        ┌──────────────────────┐
-│  flux7-console frontend     │        │  flux7-console supervisor   │
-│  Next.js dashboard   │        │  rule-based approver │
-│  localhost:3000      │        │  + Ollama fallback   │
-└──────────┬───────────┘        └──────────┬───────────┘
-           │                               │
-           │  HTTP (/mesh, /traces,        │  HTTP (/approval/pending,
-           │   /otel-traces, /approval)    │   /approval/resolve)
-           ▼                               ▼
-┌──────────────────────────────────────────────────────┐
-│                  flux7-mesh (Go)                     │
-│  policy engine · rate limits · approvals · traces    │
-│              localhost:9090                          │
-└──────────────────────────────────────────────────────┘
-           ▲
-           │  JSON-RPC (/rpc)
-┌──────────┴───────────┐
-│       flux7-memory (Go)      │
-│  memory substrate    │
-│  localhost:9070      │
-└──────────────────────┘
+                        ┌───────────────────────┐
+                        │  flux7-supervisor      │
+                        │  (sup7 — L1 agent)     │
+                        │  polls + auto-resolves │
+                        └───────────┬───────────┘
+                                    │
+┌───────────────────┐               │  mesh SDK
+│  flux7-console    │               │
+│  Next.js dashboard│               │
+│  localhost:3000   │               │
+└─────────┬─────────┘               │
+          │                         │
+          │  HTTP (rewrites)        │
+          ▼                         ▼
+┌──────────────────────────────────────────────────┐
+│                flux7-mesh (Go)                   │
+│  policy engine · approvals · traces · OTEL       │
+│              localhost:9090                       │
+└──────────────────────────────────────────────────┘
+          ▲
+          │  JSON-RPC (/rpc)
+┌─────────┴─────────┐
+│  flux7-memory (Go) │
+│  localhost:9070    │
+└───────────────────┘
 ```
 
-Both sides talk to flux7-mesh over plain HTTP. No direct coupling between frontend and supervisor.
-The frontend also connects directly to flux7-memory (JSON-RPC on port 9070) for the memory debug view.
+The dashboard talks to mesh7 and mem7 via Next.js rewrites (no direct CORS).
+The supervisor is a separate agent — the console detects it from trace data.
 
 ## Local setup
 
@@ -60,11 +69,8 @@ Prerequisites:
 
 - [flux7-mesh](https://github.com/KTCrisis/flux7-mesh) running on `localhost:9090`
 - Node.js 20+
-- Python 3.12+
-- Optional: [Ollama](https://ollama.com) running locally for the supervisor LLM fallback
-- Optional: [flux7-memory](https://github.com/KTCrisis/flux7-memory) in serve mode on `localhost:9070` for the memory view
-
-### Dashboard
+- Optional: [flux7-memory](https://github.com/KTCrisis/flux7-memory) on `localhost:9070` for memory page
+- Optional: [flux7-supervisor](https://github.com/KTCrisis/flux7-supervisor) for L1 automated evaluation
 
 ```bash
 cd frontend
@@ -73,46 +79,41 @@ npm run dev
 # http://localhost:3000
 ```
 
-The dashboard proxies to `http://localhost:9090` (flux7-mesh) and `http://localhost:9070` (flux7-memory)
-by default. Adjust in `frontend/next.config.ts` if they listen elsewhere.
+Backend URLs default to `localhost:9090` (mesh) and `localhost:9070` (mem7).
+Override via environment variables in `frontend/.env.local`:
 
-### Supervisor
-
-```bash
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-python -m app.services.supervisor --config ../demo-supervisor.yaml
+```env
+MESH_URL=http://localhost:9090
+MEM7_URL=http://localhost:9070
 ```
 
-Example configs at the repo root (git-ignored):
+These are used by Next.js rewrites in `next.config.ts` (server-side only, no `NEXT_PUBLIC_` needed).
 
-- `demo-mesh-config.yaml` — mesh-side config exposing approval tools
-- `demo-supervisor.yaml` — supervisor rules + Ollama fallback
+## APIs consumed
 
-Decisions and traces are logged to `*.jsonl` files (git-ignored).
+**mesh7** (REST):
+`/health` `/tools` `/mcp-servers` `/traces` `/otel-traces` `/sessions` `/sessions/:id`
+`/approvals` `/approvals/:id` `/approvals/:id/:decision` `/grants` (CRUD)
 
-### Tests
-
-```bash
-cd backend
-pytest tests/supervisor
-```
+**mem7** (JSON-RPC `/rpc`):
+`memory_list` `memory_recall` `memory_search` `memory_store` `memory_forget`
 
 ## Repo layout
 
-| Path                              | Purpose                                  | State     |
-|-----------------------------------|------------------------------------------|-----------|
-| `backend/app/services/supervisor` | Rule-based approval agent                | Running   |
-| `frontend/`                       | Next.js dashboard                        | Running   |
-| `backend/app/{api,db,models}`     | FastAPI scaffolding                      | Skeleton  |
-| `governance-engine/`              | Rules / scoring / severity / diff engine | Skeleton  |
-| `schemas/`                        | JSON Schemas (agent, flow, template)     | Drafted   |
-| `examples/`                       | YAML declarations (agents, flows, pol.)  | Drafted   |
+| Path | Purpose | State |
+|------|---------|-------|
+| `frontend/` | Next.js 16 dashboard (Turbopack) | Active |
+| `backend/` | FastAPI scaffolding | Skeleton |
+| `governance-engine/` | Rules / scoring / severity engine | Skeleton |
+| `schemas/` | JSON Schemas (agent, flow, template) | Drafted |
+| `examples/` | YAML declarations (agents, flows) | Drafted |
+
+> The supervisor was extracted to [flux7-supervisor](https://github.com/KTCrisis/flux7-supervisor)
+> as a standalone agent (sup7). The `backend/app/services/supervisor` directory is removed.
 
 ## Related
 
-- [flux7-mesh](https://github.com/KTCrisis/flux7-mesh) — runtime enforcement sidecar
-- [flux7-memory](https://github.com/KTCrisis/flux7-memory) — governed memory substrate for multi-agent systems
-- [event7](https://github.com/KTCrisis/event7) — sibling project for data contract governance
+- [flux7-mesh](https://github.com/KTCrisis/flux7-mesh) — runtime enforcement sidecar (Go)
+- [flux7-memory](https://github.com/KTCrisis/flux7-memory) — governed memory substrate (Go)
+- [flux7-supervisor](https://github.com/KTCrisis/flux7-supervisor) — L1 evaluation agent (Python)
+- [docs.flux7.art](https://docs.flux7.art) — documentation
