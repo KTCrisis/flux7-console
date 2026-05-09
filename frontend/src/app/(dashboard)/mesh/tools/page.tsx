@@ -179,12 +179,12 @@ export default function ToolsPage() {
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex flex-wrap gap-1">
-                        {t.params.filter((p) => p.required).map((p) => (
+                        {(t.params ?? []).filter((p) => p.required).map((p) => (
                           <span key={p.name} className="text-[10px] font-mono text-foreground bg-secondary/60 rounded px-1.5 py-0.5">
                             {p.name}
                           </span>
                         ))}
-                        {t.params.filter((p) => !p.required).map((p) => (
+                        {(t.params ?? []).filter((p) => !p.required).map((p) => (
                           <span key={p.name} className="text-[10px] font-mono text-muted-foreground bg-secondary/30 rounded px-1.5 py-0.5">
                             {p.name}?
                           </span>
