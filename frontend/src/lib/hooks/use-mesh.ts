@@ -8,6 +8,11 @@ import {
   fetchOtelTraces,
   fetchSessions,
   fetchSessionEvents,
+  fetchTools,
+  fetchMcpServers,
+  fetchGrants,
+  createGrant,
+  revokeGrant,
 } from "@/lib/api/mesh";
 
 export function useHealth() {
@@ -72,6 +77,51 @@ export function useSessionEvents(id: string | null, opts?: { limit?: number }) {
     queryFn: () => fetchSessionEvents(id!, opts),
     enabled: !!id,
     refetchInterval: 5000,
+  });
+}
+
+export function useTools() {
+  return useQuery({
+    queryKey: ["mesh", "tools"],
+    queryFn: fetchTools,
+    staleTime: 30000,
+  });
+}
+
+export function useMcpServers() {
+  return useQuery({
+    queryKey: ["mesh", "mcp-servers"],
+    queryFn: fetchMcpServers,
+    refetchInterval: 15000,
+  });
+}
+
+export function useGrants() {
+  return useQuery({
+    queryKey: ["mesh", "grants"],
+    queryFn: fetchGrants,
+    refetchInterval: 5000,
+  });
+}
+
+export function useCreateGrant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (opts: { agent: string; tools: string; duration: string }) =>
+      createGrant(opts),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mesh", "grants"] });
+    },
+  });
+}
+
+export function useRevokeGrant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => revokeGrant(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mesh", "grants"] });
+    },
   });
 }
 

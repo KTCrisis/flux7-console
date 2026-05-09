@@ -231,3 +231,92 @@ export function flattenOtlp(exp: OtlpExport): FlatSpan[] {
   }
   return out;
 }
+
+// ───────────────────────────────────────────────────────────
+// Tool Catalog
+// ───────────────────────────────────────────────────────────
+
+export interface ToolParam {
+  name: string;
+  in: string;
+  type: string;
+  required: boolean;
+}
+
+export interface CliMeta {
+  bin: string;
+  command: string;
+  timeout: number;
+  strict: boolean;
+  default_action: string;
+  is_catch_all: boolean;
+}
+
+export interface ToolEntry {
+  name: string;
+  description: string;
+  method: string;
+  path: string;
+  base_url: string;
+  params: ToolParam[];
+  source: string;
+  mcp_server?: string;
+  cli_meta?: CliMeta;
+}
+
+export async function fetchTools(): Promise<ToolEntry[]> {
+  const res = await fetch(`${MESH_BASE}/tools`);
+  if (!res.ok) throw new Error(`Failed to fetch tools: ${res.status}`);
+  return res.json();
+}
+
+export interface McpServer {
+  name: string;
+  transport: string;
+  status: string;
+  tools: string[];
+}
+
+export async function fetchMcpServers(): Promise<McpServer[]> {
+  const res = await fetch(`${MESH_BASE}/mcp-servers`);
+  if (!res.ok) throw new Error(`Failed to fetch MCP servers: ${res.status}`);
+  return res.json();
+}
+
+// ───────────────────────────────────────────────────────────
+// Grants
+// ───────────────────────────────────────────────────────────
+
+export interface Grant {
+  id: string;
+  agent: string;
+  tools: string;
+  expires_at: string;
+  remaining: string;
+  granted_by: string;
+}
+
+export async function fetchGrants(): Promise<Grant[]> {
+  const res = await fetch(`${MESH_BASE}/grants`);
+  if (!res.ok) throw new Error(`Failed to fetch grants: ${res.status}`);
+  return res.json();
+}
+
+export async function createGrant(opts: {
+  agent: string;
+  tools: string;
+  duration: string;
+}): Promise<Grant> {
+  const res = await fetch(`${MESH_BASE}/grants`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(opts),
+  });
+  if (!res.ok) throw new Error(`Failed to create grant: ${res.status}`);
+  return res.json();
+}
+
+export async function revokeGrant(id: string): Promise<void> {
+  const res = await fetch(`${MESH_BASE}/grants/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Failed to revoke grant: ${res.status}`);
+}

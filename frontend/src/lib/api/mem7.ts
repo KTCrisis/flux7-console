@@ -204,3 +204,25 @@ export async function searchMemories(opts: {
   const body = text.replace(/^\d+ results \(ranked by relevance\):\n\n/, "");
   return parseRecall(body);
 }
+
+export async function storeMemory(opts: {
+  key: string;
+  value: string;
+  tags?: string[];
+  agent?: string;
+}): Promise<string> {
+  const args: Record<string, unknown> = { key: opts.key, value: opts.value };
+  if (opts.tags?.length) args.tags = opts.tags;
+  if (opts.agent) args.agent = opts.agent;
+  return toolCall("memory_store", args);
+}
+
+export async function forgetMemory(opts: {
+  key?: string;
+  tags?: string[];
+}): Promise<string> {
+  const args: Record<string, unknown> = {};
+  if (opts.key) args.key = opts.key;
+  if (opts.tags?.length) args.tags = opts.tags;
+  return toolCall("memory_forget", args);
+}

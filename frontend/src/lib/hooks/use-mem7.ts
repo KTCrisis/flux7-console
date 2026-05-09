@@ -1,10 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchMem7Health,
   fetchMem7Info,
   fetchMemories,
   fetchMemoryDetail,
   searchMemories,
+  storeMemory,
+  forgetMemory,
 } from "@/lib/api/mem7";
 
 export function useMem7Health() {
@@ -46,5 +48,29 @@ export function useMemorySearch(query: string, opts?: { agent?: string; tags?: s
     queryKey: ["mem7", "search", query, opts],
     queryFn: () => searchMemories({ query, ...opts }),
     enabled: query.length >= 2,
+  });
+}
+
+export function useStoreMemory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (opts: { key: string; value: string; tags?: string[]; agent?: string }) =>
+      storeMemory(opts),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mem7", "memories"] });
+      qc.invalidateQueries({ queryKey: ["mem7", "memory"] });
+    },
+  });
+}
+
+export function useForgetMemory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (opts: { key?: string; tags?: string[] }) =>
+      forgetMemory(opts),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mem7", "memories"] });
+      qc.invalidateQueries({ queryKey: ["mem7", "memory"] });
+    },
   });
 }
