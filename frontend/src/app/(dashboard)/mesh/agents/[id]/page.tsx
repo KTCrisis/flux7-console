@@ -17,6 +17,10 @@ import {
   Wrench,
   Server,
   ArrowRight,
+  Lock,
+  Check,
+  X,
+  ShieldAlert,
 } from "lucide-react";
 
 export default function AgentDetailPage() {
@@ -102,6 +106,85 @@ export default function AgentDetailPage() {
     () => Object.entries(stats.policyHits).sort(([, a], [, b]) => b - a),
     [stats.policyHits]
   );
+
+  interface EffectiveRight {
+    tool: string;
+    effective: "allow" | "deny" | "approval";
+    rule: string;
+    allowed: number;
+    denied: number;
+    approval: number;
+    total: number;
+    hasGrant: boolean;
+    lastSeen: string;
+  }
+
+  const effectiveRights = useMemo(() => {
+    const toolTraces = new Map<string, { policies: Map<string, { count: number; rule: string; lastSeen: string }> }>();
+
+    for (const t of traces) {
+      if (!toolTraces.has(t.tool)) {
+        toolTraces.set(t.tool, { policies: new Map() });
+      }
+      const entry = toolTraces.get(t.tool)!;
+      const key = t.policy || "allow";
+      const existing = entry.policies.get(key);
+      if (!existing) {
+        entry.policies.set(key, { count: 1, rule: t.policy_rule || "", lastSeen: t.timestamp });
+      } else {
+        existing.count++;
+        if (t.timestamp > existing.lastSeen) {
+          existing.lastSeen = t.timestamp;
+          if (t.policy_rule) existing.rule = t.policy_rule;
+        }
+      }
+    }
+
+    const grantedTools = new Set<string>();
+    for (const g of grants) {
+      for (const tool of Object.keys(stats.toolUsage)) {
+        if (tool.match(new RegExp(g.tools.replace(/\*/g, ".*")))) {
+          grantedTools.add(tool);
+        }
+      }
+    }
+
+    const rights: EffectiveRight[] = [];
+    for (const [tool, data] of toolTraces) {
+      const usage = stats.toolUsage[tool];
+      if (!usage) continue;
+
+      const allowEntry = data.policies.get("allow");
+      const denyEntry = data.policies.get("deny");
+      const approvalEntry = data.policies.get("approval");
+
+      let lastSeen = "";
+      for (const p of data.policies.values()) {
+        if (p.lastSeen > lastSeen) lastSeen = p.lastSeen;
+      }
+
+      const mostRecent = traces.find((t) => t.tool === tool);
+      const effective = mostRecent?.policy as "allow" | "deny" | "approval" || "allow";
+      const rule = mostRecent?.policy_rule || allowEntry?.rule || denyEntry?.rule || approvalEntry?.rule || "";
+
+      rights.push({
+        tool,
+        effective,
+        rule,
+        allowed: usage.allowed,
+        denied: usage.denied,
+        approval: usage.approval,
+        total: usage.count,
+        hasGrant: grantedTools.has(tool),
+        lastSeen,
+      });
+    }
+
+    return rights.sort((a, b) => {
+      const order = { deny: 0, approval: 1, allow: 2 };
+      return (order[a.effective] ?? 2) - (order[b.effective] ?? 2) || b.total - a.total;
+    });
+  }, [traces, grants, stats.toolUsage]);
 
   if (isLoading) {
     return (
@@ -236,6 +319,84 @@ export default function AgentDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Effective rights */}
+      {effectiveRights.length > 0 && (
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-secondary/20">
+            <div className="flex items-center gap-2">
+              <Lock className="h-3.5 w-3.5 text-amber-400" />
+              <span className="text-[10px] font-mono font-semibold text-muted-foreground/60 uppercase tracking-[0.2em]">
+                Effective rights
+              </span>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                derived from {traces.length} traces
+              </span>
+            </div>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-secondary/10">
+                <th className="px-4 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Tool</th>
+                <th className="px-4 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Right</th>
+                <th className="px-4 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Rule</th>
+                <th className="px-4 py-2 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <span className="text-emerald-400">A</span>
+                  <span className="mx-1 text-border">/</span>
+                  <span className="text-red-400">D</span>
+                  <span className="mx-1 text-border">/</span>
+                  <span className="text-amber-400">P</span>
+                </th>
+                <th className="px-4 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Grant</th>
+                <th className="px-4 py-2 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Last</th>
+              </tr>
+            </thead>
+            <tbody>
+              {effectiveRights.map((r) => (
+                <tr key={r.tool} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
+                  <td className="px-4 py-2.5 font-mono text-xs">{r.tool}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={cn(
+                      "inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider",
+                      r.effective === "allow" && "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+                      r.effective === "deny" && "border-red-500/30 bg-red-500/10 text-red-400",
+                      r.effective === "approval" && "border-amber-500/30 bg-amber-500/10 text-amber-400",
+                    )}>
+                      {r.effective === "allow" && <Check className="h-2.5 w-2.5" />}
+                      {r.effective === "deny" && <X className="h-2.5 w-2.5" />}
+                      {r.effective === "approval" && <ShieldAlert className="h-2.5 w-2.5" />}
+                      {r.effective}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 font-mono text-[11px] text-muted-foreground truncate max-w-48">
+                    {r.rule || "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    <span className="font-mono text-[11px] tabular-nums">
+                      <span className="text-emerald-400">{r.allowed}</span>
+                      <span className="mx-0.5 text-border">/</span>
+                      <span className="text-red-400">{r.denied}</span>
+                      <span className="mx-0.5 text-border">/</span>
+                      <span className="text-amber-400">{r.approval}</span>
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {r.hasGrant ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-mono text-primary">
+                        <Key className="h-2.5 w-2.5" />
+                        active
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground">{timeAgo(r.lastSeen)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Two-column: grants + policies */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
