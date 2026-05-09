@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { AlertTriangle, Brain, Search, Tag, User, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { timeAgo } from "@/lib/utils";
+import { useDebouncedValue } from "@/lib/hooks/use-debounce";
+import { cn, timeAgo } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMem7Health,
   useMem7Info,
@@ -17,18 +18,20 @@ export default function MemoryPage() {
   const { data: info } = useMem7Info();
   const [agentFilter, setAgentFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
-  const isSearchMode = searchQuery.length >= 2;
+  const isSearchMode = debouncedQuery.length >= 2;
 
   const {
     data: memories,
     error: listError,
+    isLoading: isLoadingMemories,
   } = useMemories(
     agentFilter ? { agent: agentFilter } : undefined
   );
 
-  const { data: searchResults } = useMemorySearch(searchQuery, {
+  const { data: searchResults } = useMemorySearch(debouncedQuery, {
     agent: agentFilter || undefined,
     limit: 20,
   });
@@ -139,8 +142,18 @@ export default function MemoryPage() {
         <div className="lg:col-span-1 space-y-1 max-h-[calc(100vh-280px)] overflow-y-auto">
           {isSearchMode && (
             <p className="text-xs text-muted-foreground px-2 py-1">
-              {searchResults?.length ?? 0} results for &quot;{searchQuery}&quot;
+              {searchResults?.length ?? 0} results for &quot;{debouncedQuery}&quot;
             </p>
+          )}
+          {isLoadingMemories && !isSearchMode && (
+            <div className="space-y-2 px-1">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-md px-3 py-2.5 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              ))}
+            </div>
           )}
           {(displayItems ?? []).map((item) => (
             <button
@@ -184,7 +197,7 @@ export default function MemoryPage() {
         </div>
 
         {/* Detail */}
-        <div className="lg:col-span-2 rounded-lg border border-border bg-secondary/30 min-h-[300px]">
+        <div className="lg:col-span-2 rounded-lg border border-border bg-card min-h-[300px]">
           {detail ? (
             <div className="p-4 space-y-3">
               <div className="flex items-center justify-between">

@@ -3,6 +3,9 @@
 import { use } from "react";
 import { useSessionEvents } from "@/lib/hooks/use-mesh";
 import { formatDuration, timeAgo } from "@/lib/utils";
+import { PolicyBadge } from "@/components/ui/policy-badge";
+import { Stat } from "@/components/ui/stat";
+import { KPISkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 
 export default function SessionDetailPage({
@@ -11,7 +14,7 @@ export default function SessionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { data: rawEvents } = useSessionEvents(id, { limit: 500 });
+  const { data: rawEvents, isLoading } = useSessionEvents(id, { limit: 500 });
   const events = rawEvents ?? [];
 
   const totalTokens = events.reduce(
@@ -39,16 +42,20 @@ export default function SessionDetailPage({
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <Stat label="Events" value={events.length} />
-        <Stat label="Tools" value={uniqueTools.length} />
-        <Stat label="Denied" value={denied} accent={denied > 0} />
-        <Stat label="Total latency" value={formatDuration(totalLatency)} />
-        <Stat
-          label="Tokens"
-          value={totalTokens > 0 ? totalTokens.toLocaleString() : "-"}
-        />
-      </div>
+      {isLoading ? (
+        <KPISkeleton count={5} />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <Stat label="Events" value={events.length} />
+          <Stat label="Tools" value={uniqueTools.length} />
+          <Stat label="Denied" value={denied} accent={denied > 0} />
+          <Stat label="Total latency" value={formatDuration(totalLatency)} />
+          <Stat
+            label="Tokens"
+            value={totalTokens > 0 ? totalTokens.toLocaleString() : "-"}
+          />
+        </div>
+      )}
 
       {/* Tools used */}
       {uniqueTools.length > 0 && (
@@ -65,7 +72,7 @@ export default function SessionDetailPage({
       )}
 
       {/* Event timeline */}
-      <div className="rounded-lg border border-border overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-secondary/30">
@@ -131,45 +138,5 @@ export default function SessionDetailPage({
         </table>
       </div>
     </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  accent?: boolean;
-}) {
-  return (
-    <div className="rounded-lg border border-border px-3 py-2">
-      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-        {label}
-      </span>
-      <p
-        className={`text-lg font-semibold tabular-nums ${accent ? "text-red-400" : ""}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function PolicyBadge({ policy }: { policy: string }) {
-  const styles: Record<string, string> = {
-    allow: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
-    deny: "bg-red-500/15 text-red-400 border-red-500/20",
-    human_approval: "bg-amber-500/15 text-amber-400 border-amber-500/20",
-  };
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${
-        styles[policy] || "bg-secondary text-muted-foreground border-border"
-      }`}
-    >
-      {policy === "human_approval" ? "approval" : policy}
-    </span>
   );
 }

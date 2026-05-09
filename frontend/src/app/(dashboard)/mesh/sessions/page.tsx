@@ -1,23 +1,32 @@
 "use client";
 
+import { useState } from "react";
 import { useSessions } from "@/lib/hooks/use-mesh";
 import { timeAgo } from "@/lib/utils";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TimeRangeToggle, filterByTimeRange, type TimeRangeMs } from "@/components/ui/time-range";
 import Link from "next/link";
 
 export default function SessionsPage() {
-  const { data: rawSessions } = useSessions({ limit: 100 });
-  const sessions = rawSessions ?? [];
+  const [timeRange, setTimeRange] = useState<TimeRangeMs>(0);
+  const { data: rawSessions, isLoading } = useSessions({ limit: 100 });
+  const sessions = filterByTimeRange(rawSessions ?? [], (s) => s.last_seen, timeRange);
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold">Sessions</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {sessions.length} session{sessions.length !== 1 ? "s" : ""}
-        </p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="text-xl font-semibold">Sessions</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {sessions.length} session{sessions.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
       </div>
 
-      {sessions.length === 0 ? (
+      {isLoading ? (
+        <TableSkeleton rows={5} cols={5} />
+      ) : sessions.length === 0 ? (
         <div className="rounded-lg border border-border px-4 py-12 text-center">
           <p className="text-sm text-muted-foreground">No sessions yet</p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -26,7 +35,7 @@ export default function SessionsPage() {
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">

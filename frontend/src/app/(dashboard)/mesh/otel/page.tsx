@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import { useOtelTraces } from "@/lib/hooks/use-mesh";
 import { flattenOtlp, type FlatSpan } from "@/lib/api/mesh";
+import { PolicyBadge } from "@/components/ui/policy-badge";
+import { OtelStatusBadge } from "@/components/ui/status-badge";
+import { Field } from "@/components/ui/field";
 
 export default function OtelTracesPage() {
   const [filterAgent, setFilterAgent] = useState("");
@@ -118,7 +121,7 @@ export default function OtelTracesPage() {
       )}
 
       {!isLoading && !error && (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
@@ -216,7 +219,7 @@ function SpanRow({
           <PolicyBadge policy={span.attrs["policy.action"] || "-"} />
         </td>
         <td className="px-4 py-2.5">
-          <StatusBadge code={span.statusCode} message={span.statusMessage} />
+          <OtelStatusBadge code={span.statusCode} message={span.statusMessage} />
         </td>
         <td className="px-4 py-2.5 text-xs text-muted-foreground tabular-nums">
           {inputTokens + outputTokens > 0
@@ -254,65 +257,5 @@ function SpanRow({
         </tr>
       )}
     </>
-  );
-}
-
-function Field({
-  label,
-  value,
-  mono,
-  error,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  error?: boolean;
-}) {
-  return (
-    <div>
-      <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
-        {label}
-      </span>
-      <p
-        className={`mt-0.5 ${mono ? "font-mono text-[11px] break-all" : "text-xs"} ${error ? "text-destructive" : ""}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function PolicyBadge({ policy }: { policy: string }) {
-  const styles: Record<string, string> = {
-    allow: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
-    deny: "bg-red-500/15 text-red-400 border-red-500/20",
-    human_approval: "bg-amber-500/15 text-amber-400 border-amber-500/20",
-  };
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${
-        styles[policy] || "bg-secondary text-muted-foreground border-border"
-      }`}
-    >
-      {policy === "human_approval" ? "approval" : policy}
-    </span>
-  );
-}
-
-function StatusBadge({ code, message }: { code: number; message: string }) {
-  const label = code === 2 ? "error" : code === 1 ? "ok" : "unset";
-  const color =
-    code === 2
-      ? "text-red-400"
-      : code === 1
-        ? "text-emerald-400"
-        : "text-muted-foreground";
-  return (
-    <span
-      className={`text-xs font-medium ${color}`}
-      title={message || undefined}
-    >
-      {label}
-    </span>
   );
 }

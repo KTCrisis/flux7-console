@@ -3,6 +3,11 @@
 import { Fragment, useState } from "react";
 import { useTraces } from "@/lib/hooks/use-mesh";
 import { formatDuration, timeAgo } from "@/lib/utils";
+import { PolicyBadge } from "@/components/ui/policy-badge";
+import { StatusCode } from "@/components/ui/status-badge";
+import { Field } from "@/components/ui/field";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { TimeRangeToggle, filterByTimeRange, type TimeRangeMs } from "@/components/ui/time-range";
 import Link from "next/link";
 
 export default function TracesPage() {
@@ -10,16 +15,18 @@ export default function TracesPage() {
   const [filterTool, setFilterTool] = useState("");
   const [filterPolicy, setFilterPolicy] = useState("");
   const [filterSession, setFilterSession] = useState("");
+  const [timeRange, setTimeRange] = useState<TimeRangeMs>(0);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const { data: rawTraces } = useTraces({ limit: 200 });
+  const { data: rawTraces, isLoading } = useTraces({ limit: 200 });
   const traces = rawTraces ?? [];
+  const timeFiltered = filterByTimeRange(traces, (t) => t.timestamp, timeRange);
 
-  const uniqueAgents = [...new Set(traces.map((t) => t.agent_id))];
-  const uniquePolicies = [...new Set(traces.map((t) => t.policy))];
-  const uniqueSessions = [...new Set(traces.map((t) => t.session_id).filter(Boolean))];
+  const uniqueAgents = [...new Set(timeFiltered.map((t) => t.agent_id))];
+  const uniquePolicies = [...new Set(timeFiltered.map((t) => t.policy))];
+  const uniqueSessions = [...new Set(timeFiltered.map((t) => t.session_id).filter(Boolean))];
 
-  const filtered = traces.filter((t) => {
+  const filtered = timeFiltered.filter((t) => {
     if (filterAgent && t.agent_id !== filterAgent) return false;
     if (filterTool && !t.tool.toLowerCase().includes(filterTool.toLowerCase()))
       return false;
@@ -39,7 +46,8 @@ export default function TracesPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
         <select
           value={filterAgent}
           onChange={(e) => setFilterAgent(e.target.value)}
@@ -100,7 +108,10 @@ export default function TracesPage() {
         )}
       </div>
 
-      <div className="rounded-lg border border-border overflow-hidden">
+      {isLoading ? (
+        <TableSkeleton rows={8} cols={6} />
+      ) : (
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-secondary/30">
@@ -220,59 +231,7 @@ export default function TracesPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
-}
-
-function Field({
-  label,
-  value,
-  mono,
-  error,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  error?: boolean;
-}) {
-  return (
-    <div>
-      <span className="text-muted-foreground text-[10px] uppercase tracking-wider">
-        {label}
-      </span>
-      <p
-        className={`mt-0.5 ${mono ? "font-mono text-[11px]" : "text-xs"} ${error ? "text-destructive" : ""}`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function PolicyBadge({ policy }: { policy: string }) {
-  const styles: Record<string, string> = {
-    allow: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
-    deny: "bg-red-500/15 text-red-400 border-red-500/20",
-    human_approval: "bg-amber-500/15 text-amber-400 border-amber-500/20",
-  };
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${
-        styles[policy] || "bg-secondary text-muted-foreground border-border"
-      }`}
-    >
-      {policy === "human_approval" ? "approval" : policy}
-    </span>
-  );
-}
-
-function StatusCode({ code, error }: { code: number; error: string }) {
-  const color = error
-    ? "text-red-400"
-    : code >= 200 && code < 300
-      ? "text-emerald-400"
-      : code >= 400
-        ? "text-red-400"
-        : "text-muted-foreground";
-  return <span className={`text-xs tabular-nums font-medium ${color}`}>{code}</span>;
 }

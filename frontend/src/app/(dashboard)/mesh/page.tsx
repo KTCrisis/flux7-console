@@ -1,12 +1,34 @@
 "use client";
 
-import { useTraces, useApprovals, useHealth } from "@/lib/hooks/use-mesh";
-import { Activity, Shield, Clock, Cpu, AlertTriangle, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import {
+  useTraces,
+  useApprovals,
+  useApprovalDetail,
+  useResolveApproval,
+  useHealth,
+} from "@/lib/hooks/use-mesh";
+import {
+  Activity,
+  Shield,
+  Clock,
+  Cpu,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  ShieldAlert,
+} from "lucide-react";
 import { timeAgo } from "@/lib/utils";
+import { PolicyBadge } from "@/components/ui/policy-badge";
+import { KPI } from "@/components/ui/stat";
+import { KPISkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 
 export default function MeshOverview() {
-  const { data: rawTraces, error } = useTraces({ limit: 100 });
+  const { data: rawTraces, error, isLoading } = useTraces({ limit: 100 });
   const { data: rawApprovals } = useApprovals();
   const traces = rawTraces ?? [];
   const approvals = rawApprovals ?? [];
@@ -30,15 +52,10 @@ export default function MeshOverview() {
 
   const uniqueAgents = [...new Set(traces.map((t) => t.agent_id))];
   const denied = traces.filter((t) => t.policy === "deny").length;
-  const pending = approvals.filter((a) => a.status === "pending").length;
+  const pending = approvals.filter((a) => a.status === "pending");
   const avgLatency = traces.length
     ? Math.round(traces.reduce((s, t) => s + t.latency_ms, 0) / traces.length)
     : 0;
-
-  const totalTokens = traces.reduce(
-    (s, t) => s + t.estimated_input_tokens + t.estimated_output_tokens,
-    0
-  );
 
   return (
     <div className="space-y-6">
@@ -57,21 +74,62 @@ export default function MeshOverview() {
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KPI icon={Cpu} label="Agents" value={uniqueAgents.length} />
-        <KPI icon={Activity} label="Traces" value={traces.length} />
-        <KPI
-          icon={Shield}
-          label="Pending"
-          value={pending}
-          accent={pending > 0 ? "primary" : undefined}
-        />
-        <KPI icon={Clock} label="Avg latency" value={`${avgLatency}ms`} />
-      </div>
+      {isLoading ? (
+        <KPISkeleton count={4} />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <KPI icon={Cpu} label="Agents" value={uniqueAgents.length} />
+          <KPI icon={Activity} label="Traces" value={traces.length} />
+          <Link href="/mesh/approvals">
+            <KPI
+              icon={Shield}
+              label="Pending"
+              value={pending.length}
+              accent={pending.length > 0 ? "primary" : undefined}
+            />
+          </Link>
+          <KPI icon={Clock} label="Avg latency" value={`${avgLatency}ms`} />
+        </div>
+      )}
 
+      {/* Pending approvals — inline action zone */}
+      {pending.length > 0 && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.03] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-amber-500/10">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-amber-400" />
+              <span className="text-xs font-medium text-amber-400 uppercase tracking-wider">
+                Pending approvals ({pending.length})
+              </span>
+            </div>
+            <Link
+              href="/mesh/approvals"
+              className="flex items-center gap-1 text-[11px] text-primary hover:underline"
+            >
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="divide-y divide-amber-500/10">
+            {pending.slice(0, 5).map((a) => (
+              <PendingApprovalRow key={a.id} approval={a} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="grid gap-4 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <TableSkeleton rows={3} cols={2} />
+          </div>
+          <div className="lg:col-span-3">
+            <TableSkeleton rows={5} cols={3} />
+          </div>
+        </div>
+      ) : (
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Agents — 2 cols */}
-        <div className="lg:col-span-2 rounded-lg border border-border">
+        <div className="lg:col-span-2 rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Agents
@@ -95,9 +153,9 @@ export default function MeshOverview() {
                   <div className="flex items-center gap-2.5">
                     <span className="h-2 w-2 rounded-full bg-emerald-400" />
                     <span className="text-sm font-medium">{agent}</span>
-                    <span className="text-xs text-muted-foreground">{at.length}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{at.length}</span>
                     {d > 0 && (
-                      <span className="text-[10px] text-red-400 bg-red-400/10 rounded px-1.5 py-0.5">
+                      <span className="text-[10px] text-red-400 bg-red-400/10 rounded px-1.5 py-0.5 font-mono">
                         {d} denied
                       </span>
                     )}
@@ -114,7 +172,7 @@ export default function MeshOverview() {
         </div>
 
         {/* Recent — 3 cols */}
-        <div className="lg:col-span-3 rounded-lg border border-border">
+        <div className="lg:col-span-3 rounded-lg border border-border bg-card">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Recent activity
@@ -149,6 +207,8 @@ export default function MeshOverview() {
         </div>
       </div>
 
+      )}
+
       {/* Denials */}
       {denied > 0 && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/5">
@@ -166,12 +226,17 @@ export default function MeshOverview() {
                   key={t.trace_id}
                   className="flex items-center justify-between px-4 py-2.5 text-xs"
                 >
-                  <div>
+                  <div className="flex items-center gap-2">
                     <span className="font-medium">{t.agent_id}</span>
-                    <span className="text-muted-foreground"> tried </span>
+                    <span className="text-muted-foreground">→</span>
                     <span className="font-mono text-[11px]">{t.tool}</span>
+                    {t.policy_rule && (
+                      <span className="text-[10px] text-red-400/70 font-mono bg-red-500/5 rounded px-1.5 py-0.5">
+                        {t.policy_rule}
+                      </span>
+                    )}
                   </div>
-                  <span className="text-muted-foreground">{timeAgo(t.timestamp)}</span>
+                  <span className="text-muted-foreground shrink-0 ml-3">{timeAgo(t.timestamp)}</span>
                 </div>
               ))}
           </div>
@@ -181,47 +246,78 @@ export default function MeshOverview() {
   );
 }
 
-function KPI({
-  icon: Icon,
-  label,
-  value,
-  accent,
+function PendingApprovalRow({
+  approval,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string | number;
-  accent?: "primary";
+  approval: { id: string; agent_id: string; tool: string; created_at: string };
 }) {
-  return (
-    <div className="rounded-lg border border-border px-4 py-3">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <span className="text-[11px] uppercase tracking-wider">{label}</span>
-      </div>
-      <p
-        className={`mt-1 text-2xl font-semibold tabular-nums ${
-          accent === "primary" ? "text-primary" : ""
-        }`}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
+  const [expanded, setExpanded] = useState(false);
+  const [reasoning, setReasoning] = useState("");
+  const { data: detail } = useApprovalDetail(expanded ? approval.id : null);
+  const resolve = useResolveApproval();
 
-function PolicyBadge({ policy }: { policy: string }) {
-  const styles: Record<string, string> = {
-    allow: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
-    deny: "bg-red-500/15 text-red-400 border-red-500/20",
-    human_approval: "bg-amber-500/15 text-amber-400 border-amber-500/20",
-  };
+  function handleResolve(decision: "approve" | "deny") {
+    resolve.mutate(
+      { id: approval.id, decision, reasoning: reasoning || undefined },
+      { onSuccess: () => setReasoning("") }
+    );
+  }
+
   return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${
-        styles[policy] || "bg-secondary text-muted-foreground border-border"
-      }`}
-    >
-      {policy === "human_approval" ? "approval" : policy}
-    </span>
+    <div>
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          <span className="text-sm font-medium">{approval.agent_id}</span>
+          <span className="font-mono text-xs text-muted-foreground">{approval.tool}</span>
+          <span className="text-[11px] text-muted-foreground">{timeAgo(approval.created_at)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Reason"
+            value={reasoning}
+            onChange={(e) => setReasoning(e.target.value)}
+            className="w-36 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <button
+            onClick={() => handleResolve("approve")}
+            disabled={resolve.isPending}
+            className="flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+          >
+            <CheckCircle className="h-3 w-3" />
+            Approve
+          </button>
+          <button
+            onClick={() => handleResolve("deny")}
+            disabled={resolve.isPending}
+            className="flex items-center gap-1 rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-500 disabled:opacity-50 transition-colors"
+          >
+            <XCircle className="h-3 w-3" />
+            Deny
+          </button>
+        </div>
+      </div>
+      {expanded && detail && (
+        <div className="px-4 pb-3 pt-0">
+          <div className="rounded-md bg-background border border-border p-3">
+            {detail.injection_risk && (
+              <div className="flex items-center gap-2 mb-2 text-xs text-red-400">
+                <AlertTriangle className="h-3 w-3 shrink-0" />
+                Potential prompt injection detected
+              </div>
+            )}
+            <pre className="text-[11px] font-mono leading-relaxed overflow-x-auto max-h-32 text-muted-foreground">
+              {JSON.stringify(detail.params, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
