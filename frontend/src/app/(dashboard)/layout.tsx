@@ -19,6 +19,7 @@ import {
   PanelLeft,
   Bot,
   Cpu,
+  FileText,
 } from "lucide-react";
 import { useHealth, useApprovals } from "@/lib/hooks/use-mesh";
 
@@ -53,6 +54,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Govern",
     items: [
+      { href: "/mesh/policies", label: "Policies", icon: FileText },
       { href: "/mesh/approvals", label: "Approvals", icon: Shield, badge: "approvals" },
       { href: "/mesh/supervisor", label: "Supervisor", icon: Bot },
       { href: "/mesh/grants", label: "Grants", icon: Key },

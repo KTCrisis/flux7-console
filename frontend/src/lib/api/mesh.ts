@@ -233,6 +233,51 @@ export function flattenOtlp(exp: OtlpExport): FlatSpan[] {
 }
 
 // ───────────────────────────────────────────────────────────
+// Policies
+// ───────────────────────────────────────────────────────────
+
+export interface PolicyRule {
+  tools: string[];
+  action: string;
+}
+
+export interface Policy {
+  name: string;
+  agent: string;
+  rules: PolicyRule[];
+}
+
+export async function fetchPolicies(): Promise<Policy[]> {
+  const res = await fetch(`${MESH_BASE}/policies`);
+  if (!res.ok) throw new Error(`Failed to fetch policies: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchPolicyFiles(): Promise<string[]> {
+  const res = await fetch("/api/policy-files");
+  if (!res.ok) throw new Error(`Failed to list policy files: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchPolicyYaml(name: string): Promise<string> {
+  const res = await fetch(`/api/policy-files/${encodeURIComponent(name)}`);
+  if (!res.ok) throw new Error(`Failed to read policy: ${res.status}`);
+  return res.text();
+}
+
+export async function savePolicyYaml(
+  name: string,
+  content: string
+): Promise<void> {
+  const res = await fetch(`/api/policy-files/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "text/yaml" },
+    body: content,
+  });
+  if (!res.ok) throw new Error(`Failed to save policy: ${res.status}`);
+}
+
+// ───────────────────────────────────────────────────────────
 // Tool Catalog
 // ───────────────────────────────────────────────────────────
 

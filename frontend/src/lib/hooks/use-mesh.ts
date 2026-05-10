@@ -8,6 +8,9 @@ import {
   fetchOtelTraces,
   fetchSessions,
   fetchSessionEvents,
+  fetchPolicies,
+  fetchPolicyYaml,
+  savePolicyYaml,
   fetchTools,
   fetchMcpServers,
   fetchGrants,
@@ -77,6 +80,35 @@ export function useSessionEvents(id: string | null, opts?: { limit?: number }) {
     queryFn: () => fetchSessionEvents(id!, opts),
     enabled: !!id,
     refetchInterval: 5000,
+  });
+}
+
+export function usePolicies() {
+  return useQuery({
+    queryKey: ["mesh", "policies"],
+    queryFn: fetchPolicies,
+    staleTime: 30000,
+  });
+}
+
+export function usePolicyYaml(name: string | null) {
+  return useQuery({
+    queryKey: ["mesh", "policy-yaml", name],
+    queryFn: () => fetchPolicyYaml(name!),
+    enabled: !!name,
+    staleTime: Infinity,
+  });
+}
+
+export function useSavePolicyYaml() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, content }: { name: string; content: string }) =>
+      savePolicyYaml(name, content),
+    onSuccess: (_data, { name }) => {
+      qc.invalidateQueries({ queryKey: ["mesh", "policy-yaml", name] });
+      qc.invalidateQueries({ queryKey: ["mesh", "policies"] });
+    },
   });
 }
 
