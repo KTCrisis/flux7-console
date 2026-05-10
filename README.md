@@ -9,14 +9,16 @@ sits in between for automated evaluation.
 
 ## Status
 
-The **dashboard** (Next.js 16 + TanStack Query) is operational with 10 routes:
+The **dashboard** (Next.js 16 + TanStack Query) is operational with 12 routes:
 
 | Route | Purpose |
 |-------|---------|
 | `/mesh` | Overview — KPIs, inline pending approvals, recent activity, denials |
+| `/mesh/agents` | Agent list with stats, detail view with tool usage breakdown |
 | `/mesh/traces` | Trace browser with time range + agent/tool/policy filters |
 | `/mesh/sessions` | Session list with time range filter, drill-down timeline |
 | `/mesh/otel` | OTLP spans with waterfall bars, token counts |
+| `/mesh/policies` | Policy viewer (by policy / by tool), KPIs, inline YAML editor with hot-reload |
 | `/mesh/approvals` | Pending approvals (expand + approve/deny), resolution history |
 | `/mesh/supervisor` | L1 supervisor status — derived from mesh7 traces, implementation-agnostic |
 | `/mesh/grants` | Active grants with TTL, create/revoke |
@@ -27,7 +29,7 @@ The **dashboard** (Next.js 16 + TanStack Query) is operational with 10 routes:
 
 Terminal Noir — deep blue-black palette, dot-grid background, JetBrains Mono (data) + Outfit (UI),
 cyan glow accents, glassmorphism sidebar with gradient glow line. Collapsible sidebar nav grouped
-by function: Observe (Traces, Sessions, OTEL), Govern (Approvals, Supervisor, Grants, Tools),
+by function: Observe (Traces, Sessions, OTEL), Govern (Policies, Approvals, Supervisor, Grants, Tools),
 Storage (Memory).
 
 ## Architecture
@@ -93,7 +95,7 @@ These are used by Next.js rewrites in `next.config.ts` (server-side only, no `NE
 
 **mesh7** (REST):
 `/health` `/tools` `/mcp-servers` `/traces` `/otel-traces` `/sessions` `/sessions/:id`
-`/approvals` `/approvals/:id` `/approvals/:id/:decision` `/grants` (CRUD)
+`/approvals` `/approvals/:id` `/approvals/:id/:decision` `/grants` (CRUD) `/policies`
 
 **mem7** (JSON-RPC `/rpc`):
 `memory_list` `memory_recall` `memory_search` `memory_store` `memory_forget`
