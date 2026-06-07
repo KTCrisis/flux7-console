@@ -1,22 +1,11 @@
 import type { NextConfig } from "next";
 
+// /api/mesh/* and /api/mem7/* are served by route handlers
+// (src/app/api/{mesh,mem7}/[...path]/route.ts) so the admin token can be
+// injected server-side — a rewrite cannot add headers.
 const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
-  },
-  async rewrites() {
-    const meshUrl = process.env.MESH_URL ?? "http://localhost:9090";
-    const mem7Url = process.env.MEM7_URL ?? "http://localhost:9070";
-    return [
-      {
-        source: "/api/mesh/:path*",
-        destination: `${meshUrl}/:path*`,
-      },
-      {
-        source: "/api/mem7/:path*",
-        destination: `${mem7Url}/:path*`,
-      },
-    ];
   },
 };
 
