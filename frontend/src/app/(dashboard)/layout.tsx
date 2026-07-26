@@ -20,6 +20,7 @@ import {
   Bot,
   Cpu,
   FileText,
+  Menu,
 } from "lucide-react";
 import { useHealth, useApprovals } from "@/lib/hooks/use-mesh";
 
@@ -96,6 +97,11 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  // Deux notions distinctes, et non deux vues d'un même état : sur grand écran la
+  // barre se replie en icônes tout en restant là ; sur téléphone elle sort et
+  // rentre. Un seul booléen aurait fait disparaître la barre du bureau en même
+  // temps qu'il ouvrait le tiroir.
+  const [drawer, setDrawer] = useState(false);
   const { data: health, dataUpdatedAt } = useHealth();
   const { data: rawApprovals } = useApprovals();
   const pendingCount = (rawApprovals ?? []).filter((a) => a.status === "pending").length;
@@ -103,11 +109,36 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen flex">
+      {/* Ouvre le tiroir. Sous lg seulement : au-dessus, la barre est toujours là
+          et son propre bouton suffit à la replier. */}
+      <button
+        onClick={() => setDrawer(true)}
+        aria-label="ouvrir la navigation"
+        className="lg:hidden fixed top-2 left-2 z-30 h-10 w-10 flex items-center justify-center rounded-lg border border-border bg-[#060c16]/95 backdrop-blur-xl text-muted-foreground hover:text-foreground"
+      >
+        <Menu className="h-4 w-4" />
+      </button>
+
+      {/* Voile : un tiroir ouvert doit se fermer d'un geste, ailleurs qu'un
+          bouton de 40 px. */}
+      {drawer && (
+        <div
+          onClick={() => setDrawer(false)}
+          className="lg:hidden fixed inset-0 z-10 bg-black/60 backdrop-blur-sm"
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-20 flex flex-col bg-[#060c16]/95 backdrop-blur-xl border-r border-border transition-[width] duration-200",
-          collapsed ? "w-14" : "w-52"
+          "fixed inset-y-0 left-0 z-20 flex flex-col bg-[#060c16]/95 backdrop-blur-xl border-r border-border transition-[width,transform] duration-200",
+          collapsed ? "w-14" : "w-52",
+          // Sur téléphone la barre sort du flux : à 412 px, 208 px de navigation
+          // permanente ne laissaient que la moitié de l'écran au contenu, qui se
+          // faisait couper à droite. Elle garde sa largeur pleine quand elle est
+          // sortie, l'état replié n'ayant aucun sens dans un tiroir.
+          "max-lg:w-52 max-lg:shadow-2xl",
+          drawer ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"
         )}
       >
         {/* Logo + collapse toggle */}
@@ -164,6 +195,9 @@ export default function DashboardLayout({
                       key={href}
                       href={href}
                       title={collapsed ? label : undefined}
+                      // naviguer referme le tiroir : le laisser ouvert sur la
+                      // page suivante masquerait ce qu'on vient d'aller chercher
+                      onClick={() => setDrawer(false)}
                       className={cn(
                         "relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-all",
                         active
@@ -263,9 +297,13 @@ export default function DashboardLayout({
       {/* Main content */}
       <main className={cn(
         "flex-1 min-h-screen transition-[margin] duration-200",
-        collapsed ? "ml-14" : "ml-52"
+        collapsed ? "ml-14" : "ml-52",
+        // le tiroir passe par-dessus : le contenu prend tout l'écran
+        "max-lg:ml-0"
       )}>
-        <div className="px-6 py-6 max-w-7xl mx-auto w-full">{children}</div>
+        {/* pt-14 sous lg : sans lui, le titre de la page passerait derrière le
+            bouton d'ouverture, qui est en position fixe */}
+        <div className="px-6 py-6 max-lg:px-4 max-lg:pt-14 max-w-7xl mx-auto w-full">{children}</div>
       </main>
     </div>
   );

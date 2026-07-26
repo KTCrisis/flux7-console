@@ -115,7 +115,7 @@ export default function TracesPage() {
       {isLoading ? (
         <TableSkeleton rows={8} cols={6} />
       ) : (
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-secondary/30">

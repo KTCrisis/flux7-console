@@ -1,0 +1,50 @@
+# flux7-console — system unit.
+#
+# System et non user : sous WSL le bus du gestionnaire utilisateur ne répond pas
+# toujours (`systemctl --user` échoue avec « Failed to connect to bus » même
+# quand le linger est posé). Même choix que mesh7, mem7, ops7 et les ateliers.
+#
+# Install :
+#   sudo cp deploy/flux7-console.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now flux7-console
+#
+# Ici c'est Next lui-même qui est le service, et non uvicorn comme dans les trois
+# ateliers. Ceux-là exportent leur front en fichiers morts (`output: "export"`)
+# que leur backend Python sert ; console ne peut pas, et pour une raison écrite en
+# tête de son `next.config.ts` : `/api/mesh/*` et `/api/mem7/*` sont servis par
+# des route handlers, afin que le jeton d'administration du mesh soit injecté
+# côté serveur, une réécriture ne pouvant pas ajouter d'en-tête. Ce code doit
+# donc tourner, et le jeton ne descend jamais dans le navigateur. Son backend
+# FastAPI, lui, reste un squelette et ne sert rien.
+#
+# Après une modification du front :
+#   cd frontend && npm run build && sudo systemctl restart flux7-console
+
+[Unit]
+Description=flux7-console — le tableau de bord de gouvernance
+After=network.target mesh7.service
+Wants=mesh7.service
+
+[Service]
+Type=simple
+User=fluxart
+WorkingDirectory=/home/fluxart/flux7-console/frontend
+Environment=NODE_ENV=production
+# Facultatif, d'où le tiret : sans MESH_ADMIN_TOKEN le proxy n'ajoute pas
+# d'en-tête d'autorisation, ce qui suffit tant que mesh7 est joint en loopback.
+# Le jour où il faudra le poser, ce fichier le portera seul, en 600, plutôt que
+# ~/.env.secrets, que systemd recopierait en clair dans le journal.
+EnvironmentFile=-/home/fluxart/.config/flux7/console.env
+# next directement, sans passer par npm : un intermédiaire de plus entre systemd
+# et le processus à surveiller ne donne rien et brouille les signaux.
+ExecStart=/home/fluxart/flux7-console/frontend/node_modules/.bin/next start -H 127.0.0.1 -p 8790
+Restart=on-failure
+RestartSec=3
+
+# Durcissement léger : console écrit peu, mais lit POLICY_DIR sous le home pour
+# l'éditeur de politiques.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

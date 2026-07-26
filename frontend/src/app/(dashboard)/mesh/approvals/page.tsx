@@ -194,7 +194,7 @@ export default function ApprovalsPage() {
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
             History
           </span>
-          <div className="mt-2 rounded-lg border border-border bg-card overflow-hidden">
+          <div className="mt-2 rounded-lg border border-border bg-card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">

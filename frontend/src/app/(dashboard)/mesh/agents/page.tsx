@@ -91,7 +91,7 @@ export default function AgentsPage() {
           <p className="text-sm text-muted-foreground">No agents detected in traces</p>
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
