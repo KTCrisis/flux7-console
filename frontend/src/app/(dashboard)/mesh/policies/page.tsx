@@ -24,6 +24,8 @@ export default function PoliciesPage() {
   const [tab, setTab] = useState<Tab>("policy");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
+  // Holds the FILE name (e.g. "claude.local.yaml"), not the policy name:
+  // they differ, and guessing one from the other opened an empty editor.
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -196,7 +198,7 @@ export default function PoliciesPage() {
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-primary/10">
             <div className="flex items-center gap-2">
               <Pencil className="h-3.5 w-3.5 text-primary" />
-              <span className="text-sm font-medium">{editing}.yaml</span>
+              <span className="text-sm font-medium">{editing}</span>
               {isDirty && (
                 <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 rounded px-1.5 py-0.5">
                   modified
@@ -258,7 +260,7 @@ export default function PoliciesPage() {
           ) : (
             filteredPolicies.map((p) => {
               const isOpen = expanded.has(p.name);
-              const isEditing = editing === p.name;
+              const isEditing = editing !== null && editing === p.source_file;
               const actionCounts = { allow: 0, deny: 0, human_approval: 0 };
               for (const r of p.rules) {
                 if (r.action in actionCounts) actionCounts[r.action as keyof typeof actionCounts]++;
@@ -304,18 +306,27 @@ export default function PoliciesPage() {
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => isEditing ? closeEditor() : openEditor(p.name)}
-                        className={cn(
-                          "flex items-center justify-center h-7 w-7 rounded transition-colors",
-                          isEditing
-                            ? "bg-primary/15 text-primary"
-                            : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                        )}
-                        title="Edit YAML"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
+                      {p.source_file ? (
+                        <button
+                          onClick={() => isEditing ? closeEditor() : openEditor(p.source_file!)}
+                          className={cn(
+                            "flex items-center justify-center h-7 w-7 rounded transition-colors",
+                            isEditing
+                              ? "bg-primary/15 text-primary"
+                              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                          )}
+                          title={`Edit ${p.source_file}`}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      ) : (
+                        <span
+                          className="flex items-center justify-center h-7 w-7 text-muted-foreground/30"
+                          title="Declared inline in config.yaml — no file to edit"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </span>
+                      )}
                     </div>
                   </div>
                   {isOpen && (

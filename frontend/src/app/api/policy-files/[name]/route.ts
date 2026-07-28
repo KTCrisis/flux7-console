@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, writeFile } from "fs/promises";
+import { access, readFile, writeFile } from "fs/promises";
 import { join, basename } from "path";
 
 const POLICY_DIR =
@@ -40,6 +40,18 @@ export async function PUT(
   const body = await req.text();
   if (!body.trim()) {
     return NextResponse.json({ error: "Empty body" }, { status: 400 });
+  }
+
+  // Only overwrite a file that already exists. Creating one here would add a
+  // second policy to policy_dir, and two files declaring the same `name:` both
+  // get loaded — the editor is for editing, not for spawning policies.
+  try {
+    await access(path);
+  } catch {
+    return NextResponse.json(
+      { error: "No such policy file — create it in policy_dir first" },
+      { status: 404 }
+    );
   }
 
   try {

@@ -245,6 +245,15 @@ export interface Policy {
   name: string;
   agent: string;
   rules: PolicyRule[];
+  /**
+   * File this policy was read from, relative to policy_dir. Absent when the
+   * policy is declared inline in config.yaml — there is then no file to edit.
+   *
+   * A policy's name and its file name are different things: claude.local.yaml
+   * declares `name: claude`. Deriving one from the other opened an empty editor
+   * and, on save, would have written a second file with a duplicate name.
+   */
+  source_file?: string;
 }
 
 export async function fetchPolicies(): Promise<Policy[]> {
