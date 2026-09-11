@@ -154,7 +154,12 @@ export default function TracesPage() {
                     setExpanded(expanded === t.trace_id ? null : t.trace_id)
                   }
                 >
-                  <td className="px-4 py-2.5 text-sm font-medium">{t.agent_id}</td>
+                  <td className="px-4 py-2.5 text-sm font-medium">
+                    {t.agent_id}
+                    {t.user_id && (
+                      <span className="block text-[11px] font-normal text-muted-foreground">for {t.user_id}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 font-mono text-[11px]">
                     {t.session_id ? (
                       <Link

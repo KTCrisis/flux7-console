@@ -50,6 +50,8 @@ export default function AgentDetailPage() {
 
   const stats = useMemo(() => {
     const toolUsage: Record<string, { count: number; allowed: number; denied: number; approval: number }> = {};
+    // Distinct humans this agent acted for, from the trace user_id (empty for agent-only traffic).
+    const users: string[] = [];
     const policyHits: Record<string, number> = {};
 
     for (const t of traces) {
@@ -57,6 +59,7 @@ export default function AgentDetailPage() {
         toolUsage[t.tool] = { count: 0, allowed: 0, denied: 0, approval: 0 };
       }
       toolUsage[t.tool].count++;
+      if (t.user_id && !users.includes(t.user_id)) users.push(t.user_id);
       if (t.policy === "deny") toolUsage[t.tool].denied++;
       else if (t.policy === "approval") toolUsage[t.tool].approval++;
       else toolUsage[t.tool].allowed++;
@@ -73,7 +76,7 @@ export default function AgentDetailPage() {
       ? Math.round(traces.reduce((s, t) => s + t.latency_ms, 0) / traces.length)
       : 0;
 
-    return { toolUsage, policyHits, denied, allowed, pending, avgLatency };
+    return { toolUsage, policyHits, denied, allowed, pending, avgLatency, users };
   }, [traces, approvals]);
 
   const depGraph = useMemo(() => {
@@ -217,6 +220,11 @@ export default function AgentDetailPage() {
         </div>
         <div>
           <h1 className="text-lg font-semibold tracking-tight font-mono">{agentId}</h1>
+          {stats.users.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              for {stats.users.join(", ")}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground mt-0.5">
             {traces.length} traces · {Object.keys(stats.toolUsage).length} tools · last seen {traces[0] ? timeAgo(traces[0].timestamp) : "—"}
           </p>

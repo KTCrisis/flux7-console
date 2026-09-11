@@ -196,7 +196,10 @@ export default function MeshOverview() {
               >
                 <div className="flex items-center gap-3">
                   <PolicyBadge policy={t.policy} />
-                  <span className="text-muted-foreground w-20 truncate">{t.agent_id}</span>
+                  <span className="text-muted-foreground w-20 truncate" title={t.user_id ? `${t.agent_id} for ${t.user_id}` : t.agent_id}>
+                    {t.agent_id}
+                    {t.user_id && <span className="text-[10px] opacity-70"> · {t.user_id}</span>}
+                  </span>
                   <span className="font-mono text-[11px]">{t.tool}</span>
                 </div>
                 <span className="text-muted-foreground">{timeAgo(t.timestamp)}</span>
@@ -232,6 +235,7 @@ export default function MeshOverview() {
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{t.agent_id}</span>
+                    {t.user_id && <span className="text-[10px] text-muted-foreground">for {t.user_id}</span>}
                     <span className="text-muted-foreground">→</span>
                     <span className="font-mono text-[11px]">{t.tool}</span>
                     {t.policy_rule && (

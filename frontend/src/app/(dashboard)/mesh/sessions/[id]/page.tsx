@@ -107,6 +107,7 @@ export default function SessionDetailPage({
                 </td>
                 <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
                   {e.tool}
+                  {e.user_id && <span className="block text-[10px] font-sans">for {e.user_id}</span>}
                 </td>
                 <td className="px-4 py-2.5">
                   <PolicyBadge policy={e.policy} />

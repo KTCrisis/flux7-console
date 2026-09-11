@@ -4,6 +4,9 @@ export interface TraceEntry {
   trace_id: string;
   session_id: string;
   agent_id: string;
+  // The human the agent acted for, when its credential carried one
+  // (mesh7 auth.jwt.user_claim). Absent on agent-only calls.
+  user_id?: string;
   tool: string;
   params: Record<string, unknown>;
   policy: string;

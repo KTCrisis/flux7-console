@@ -11,6 +11,8 @@ interface AgentRow {
   id: string;
   traceCount: number;
   tools: string[];
+  // Distinct humans this agent acted for (trace user_id); empty for agent-only traffic.
+  users: string[];
   policies: string[];
   grantCount: number;
   pendingApprovals: number;
@@ -37,6 +39,7 @@ export default function AgentsPage() {
           id: t.agent_id,
           traceCount: 0,
           tools: [],
+          users: [],
           policies: [],
           grantCount: 0,
           pendingApprovals: 0,
@@ -48,6 +51,7 @@ export default function AgentsPage() {
       }
       row.traceCount++;
       if (!row.tools.includes(t.tool)) row.tools.push(t.tool);
+      if (t.user_id && !row.users.includes(t.user_id)) row.users.push(t.user_id);
       if (t.policy && !row.policies.includes(t.policy)) row.policies.push(t.policy);
       if (t.timestamp > row.lastSeen) row.lastSeen = t.timestamp;
       if (t.policy === "deny") row.denied++;
@@ -96,6 +100,7 @@ export default function AgentsPage() {
             <thead>
               <tr className="border-b border-border bg-secondary/30">
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Agent</th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">For</th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Traces</th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Tools</th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Status</th>
@@ -110,6 +115,9 @@ export default function AgentsPage() {
                     <Link href={`/mesh/agents/${encodeURIComponent(a.id)}`} className="font-mono text-xs text-primary hover:underline">
                       {a.id}
                     </Link>
+                  </td>
+                  <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground" title={a.users.join(", ")}>
+                    {a.users.length === 0 ? "\u2014" : a.users.length === 1 ? a.users[0] : `${a.users[0]} +${a.users.length - 1}`}
                   </td>
                   <td className="px-4 py-2.5 font-mono text-xs tabular-nums">{a.traceCount}</td>
                   <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{a.tools.length}</td>

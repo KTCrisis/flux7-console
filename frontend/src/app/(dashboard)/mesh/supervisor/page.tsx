@@ -264,7 +264,10 @@ export default function SupervisorPage() {
                   <tbody>
                     {recentL1.map((t) => (
                       <tr key={t.trace_id} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
-                        <td className="px-4 py-2.5 text-sm">{t.agent_id}</td>
+                        <td className="px-4 py-2.5 text-sm">
+                          {t.agent_id}
+                          {t.user_id && <span className="block text-[11px] text-muted-foreground">for {t.user_id}</span>}
+                        </td>
                         <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{t.tool}</td>
                         <td className="px-4 py-2.5"><DecisionBadge status={t.approval_status} /></td>
                         <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{t.approved_by}</td>
