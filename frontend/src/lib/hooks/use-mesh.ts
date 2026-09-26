@@ -7,6 +7,7 @@ import {
   resolveApproval,
   fetchOtelTraces,
   fetchTraceWhy,
+  fetchTraceVerify,
   fetchSessions,
   fetchSessionEvents,
   fetchPolicies,
@@ -47,6 +48,17 @@ export function useTraceWhy(id: string | null) {
     queryFn: () => fetchTraceWhy(id!),
     enabled: !!id,
     staleTime: 60_000,
+  });
+}
+
+// The chain check holds mesh7's writes for a few milliseconds: once a
+// minute is plenty, and a mesh without the route is not retried.
+export function useTraceVerify() {
+  return useQuery({
+    queryKey: ["mesh", "trace-verify"],
+    queryFn: fetchTraceVerify,
+    refetchInterval: 60_000,
+    retry: false,
   });
 }
 

@@ -41,6 +41,30 @@ export interface TraceWhy {
   chain: TraceEntry[];
 }
 
+// Hash chain of mesh7's trace file (GET /traces/verify). mesh7 holds the
+// key and runs the check; the console only reports it.
+export interface ChainStatus {
+  persistent: boolean;
+  files?: string[];
+  hmac: boolean;
+  verified_at: string;
+  lines: number;
+  unchained: number;
+  chained: number;
+  first_seq?: number;
+  last_seq?: number;
+  anchor?: string;
+  head?: string;
+  alg?: string;
+  break?: { file: string; line: number; seq?: number; reason: string };
+}
+
+export async function fetchTraceVerify(): Promise<ChainStatus> {
+  const res = await fetch(`${MESH_BASE}/traces/verify`);
+  if (!res.ok) throw new Error(`Chain check unavailable: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchTraceWhy(id: string, depth = 10): Promise<TraceWhy> {
   const res = await fetch(
     `${MESH_BASE}/traces/${encodeURIComponent(id)}/why?depth=${depth}`

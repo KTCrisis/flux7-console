@@ -7,6 +7,7 @@ import { PolicyBadge } from "@/components/ui/policy-badge";
 import { StatusCode } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
 import { WhyChain } from "@/components/mesh/why-chain";
+import { IntegrityBadge } from "@/components/mesh/integrity-badge";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { TimeRangeToggle, filterByTimeRange, type TimeRangeMs } from "@/components/ui/time-range";
 import { Activity } from "lucide-react";
@@ -48,6 +49,9 @@ export default function TracesPage() {
           <p className="text-xs text-muted-foreground mt-0.5">
             {filtered.length} of {traces.length} entries
           </p>
+        </div>
+        <div className="ml-auto">
+          <IntegrityBadge />
         </div>
       </div>
 
