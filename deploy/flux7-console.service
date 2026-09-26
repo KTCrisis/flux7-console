@@ -34,6 +34,8 @@ Environment=NODE_ENV=production
 # d'en-tête d'autorisation, ce qui suffit tant que mesh7 est joint en loopback.
 # Le jour où il faudra le poser, ce fichier le portera seul, en 600, plutôt que
 # ~/.env.secrets, que systemd recopierait en clair dans le journal.
+# Même fichier pour sup7 : SUP7_URL (défaut http://localhost:9096) et
+# SUP7_ADMIN_TOKEN (= admin.token de sup7.yaml), lus par /api/sup7/*.
 EnvironmentFile=-/home/fluxart/.config/flux7/console.env
 # next directement, sans passer par npm : un intermédiaire de plus entre systemd
 # et le processus à surveiller ne donne rien et brouille les signaux.

@@ -6,6 +6,7 @@ import { cn, timeAgo } from "@/lib/utils";
 import { DecisionBadge } from "@/components/ui/decision-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck, Bot, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { Sup7ControlPanel } from "@/components/supervisor/control-panel";
 
 function isL1Resolution(approvedBy: string): boolean {
   if (!approvedBy) return false;
@@ -86,9 +87,17 @@ export default function SupervisorPage() {
         <div>
           <h1 className="text-lg font-semibold">Supervisor</h1>
           <p className="text-xs text-muted-foreground">
-            L1 automated evaluation — derived from mesh7 traces
+            L1 automated evaluation — live control of sup7, then history from mesh7 traces
           </p>
         </div>
+      </div>
+
+      <Sup7ControlPanel />
+
+      <div className="pt-2 border-t border-border">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+          History · derived from mesh7 traces
+        </span>
       </div>
 
       {isLoading ? (
