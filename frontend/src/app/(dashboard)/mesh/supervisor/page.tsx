@@ -7,6 +7,7 @@ import { DecisionBadge } from "@/components/ui/decision-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck, Bot, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Sup7ControlPanel } from "@/components/supervisor/control-panel";
+import { useSup7Status } from "@/lib/hooks/use-sup7";
 
 function isL1Resolution(approvedBy: string): boolean {
   if (!approvedBy) return false;
@@ -16,6 +17,10 @@ function isL1Resolution(approvedBy: string): boolean {
 
 export default function SupervisorPage() {
   const { data: traces, isLoading } = useTraces({ limit: 500 });
+  // When sup7 answers its admin API, it exists: an empty history only means
+  // it has not resolved anything among the recent traces.
+  const sup7 = useSup7Status();
+  const sup7Reachable = !!sup7.data;
 
   const stats = useMemo(() => {
     if (!traces) return null;
@@ -108,6 +113,12 @@ export default function SupervisorPage() {
               <Skeleton className="h-6 w-12" />
             </div>
           ))}
+        </div>
+      ) : !stats?.active && sup7Reachable ? (
+        <div className="rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
+          No approval resolved by sup7 in the last {traces?.length ?? 0} mesh7 traces. sup7 only sees calls
+          that the mesh policy sends to <span className="font-mono">human_approval</span>; calls allowed or denied
+          by the policy never reach it.
         </div>
       ) : !stats?.active ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center space-y-3">
