@@ -6,6 +6,7 @@ import {
   fetchHealth,
   resolveApproval,
   fetchOtelTraces,
+  fetchTraceWhy,
   fetchSessions,
   fetchSessionEvents,
   fetchPolicies,
@@ -35,6 +36,17 @@ export function useTraces(opts?: {
     queryKey: ["mesh", "traces", opts],
     queryFn: () => fetchTraces(opts),
     refetchInterval: 5000,
+  });
+}
+
+// The causal chain of one call. Fetched only when a trace is opened; the
+// chain of a past call does not change, so no polling.
+export function useTraceWhy(id: string | null) {
+  return useQuery({
+    queryKey: ["mesh", "trace-why", id],
+    queryFn: () => fetchTraceWhy(id!),
+    enabled: !!id,
+    staleTime: 60_000,
   });
 }
 

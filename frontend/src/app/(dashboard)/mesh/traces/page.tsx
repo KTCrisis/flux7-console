@@ -6,6 +6,7 @@ import { formatDuration, timeAgo } from "@/lib/utils";
 import { PolicyBadge } from "@/components/ui/policy-badge";
 import { StatusCode } from "@/components/ui/status-badge";
 import { Field } from "@/components/ui/field";
+import { WhyChain } from "@/components/mesh/why-chain";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { TimeRangeToggle, filterByTimeRange, type TimeRangeMs } from "@/components/ui/time-range";
 import { Activity } from "lucide-react";
@@ -146,12 +147,16 @@ export default function TracesPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((t) => (
-              <Fragment key={t.trace_id}>
+            {filtered.map((t, i) => {
+              // A propagated traceparent can share one trace ID across calls: the
+              // span (or the position) keeps rows and their expansion distinct.
+              const rowKey = `${t.trace_id}-${t.span_id ?? i}`;
+              return (
+              <Fragment key={rowKey}>
                 <tr
                   className="border-b border-border/30 hover:bg-secondary/20 cursor-pointer transition-colors"
                   onClick={() =>
-                    setExpanded(expanded === t.trace_id ? null : t.trace_id)
+                    setExpanded(expanded === rowKey ? null : rowKey)
                   }
                 >
                   <td className="px-4 py-2.5 text-sm font-medium">
@@ -193,12 +198,19 @@ export default function TracesPage() {
                     {timeAgo(t.timestamp)}
                   </td>
                 </tr>
-                {expanded === t.trace_id && (
+                {expanded === rowKey && (
                   <tr className="border-b border-border/30">
                     <td colSpan={8} className="px-4 py-4 bg-secondary/10">
                       <div className="grid grid-cols-2 gap-4 text-xs max-w-3xl">
                         <div className="space-y-2">
                           <Field label="Trace ID" value={t.trace_id} mono />
+                          {t.span_id && (
+                            <Field
+                              label="Span"
+                              value={t.parent_span_id ? `${t.span_id} ← ${t.parent_span_id} (caller)` : t.span_id}
+                              mono
+                            />
+                          )}
                           {t.session_id && (
                             <Field label="Session ID" value={t.session_id} mono />
                           )}
@@ -211,6 +223,9 @@ export default function TracesPage() {
                               />
                             </>
                           )}
+                          {t.supervisor_reasoning && (
+                            <Field label="Supervisor reasoning" value={t.supervisor_reasoning} />
+                          )}
                           {t.error && <Field label="Error" value={t.error} error />}
                         </div>
                         <div>
@@ -221,12 +236,14 @@ export default function TracesPage() {
                             {JSON.stringify(t.params, null, 2)}
                           </pre>
                         </div>
+                        <WhyChain trace={t} />
                       </div>
                     </td>
                   </tr>
                 )}
               </Fragment>
-            ))}
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td

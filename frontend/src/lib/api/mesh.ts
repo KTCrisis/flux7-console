@@ -21,6 +21,32 @@ export interface TraceEntry {
   estimated_input_tokens: number;
   estimated_output_tokens: number;
   timestamp: string;
+  // Lineage: the temporal grant that let the call through, and the call that
+  // motivated that grant (when the grant recorded an origin).
+  grant_id?: string;
+  parent_trace_id?: string;
+  // W3C span of the call, and the caller's span when it sent a traceparent.
+  span_id?: string;
+  parent_span_id?: string;
+  supervisor_reasoning?: string;
+  supervisor_confidence?: number;
+  // Number of updates appended after the first record (approval outcome…).
+  revision?: number;
+}
+
+export interface TraceWhy {
+  trace_id: string;
+  chain_length: number;
+  // Oldest first; the requested call is last.
+  chain: TraceEntry[];
+}
+
+export async function fetchTraceWhy(id: string, depth = 10): Promise<TraceWhy> {
+  const res = await fetch(
+    `${MESH_BASE}/traces/${encodeURIComponent(id)}/why?depth=${depth}`
+  );
+  if (!res.ok) throw new Error(`Failed to fetch trace chain: ${res.status}`);
+  return res.json();
 }
 
 export interface ApprovalSummary {
