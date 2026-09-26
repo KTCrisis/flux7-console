@@ -47,7 +47,7 @@ Storage (Memory).
 │  localhost:3000   │               │
 └─────────┬─────────┘               │
           │                         │
-          │  HTTP (rewrites)        │
+          │  HTTP (server proxies)  │
           ▼                         ▼
 ┌──────────────────────────────────────────────────┐
 │                flux7-mesh (Go)                   │
@@ -62,8 +62,10 @@ Storage (Memory).
 └───────────────────┘
 ```
 
-The dashboard talks to mesh7 and mem7 via Next.js rewrites (no direct CORS).
-The supervisor is a separate agent — the console detects it from trace data.
+The dashboard talks to mesh7, mem7 and sup7 through server-side route handlers
+(`frontend/src/app/api/{mesh,mem7,sup7}/[...path]/route.ts`): no direct CORS, and
+the admin tokens stay on the server. The supervisor is a separate agent; when its
+admin API is enabled the console shows its status and can pause or resume it.
 
 ## Local setup
 
@@ -86,10 +88,18 @@ Override via environment variables in `frontend/.env.local`:
 
 ```env
 MESH_URL=http://localhost:9090
+MESH_ADMIN_TOKEN=            # mesh control-plane token, needed for a non-loopback mesh
 MEM7_URL=http://localhost:9070
+MEM7_TOKEN=
+SUP7_URL=http://localhost:9096
+SUP7_ADMIN_TOKEN=
+POLICY_DIR=                  # policy files the Policies page reads and writes
 ```
 
-These are used by Next.js rewrites in `next.config.ts` (server-side only, no `NEXT_PUBLIC_` needed).
+They are read by the route handlers on the server only (no `NEXT_PUBLIC_` prefix).
+
+For a long-running instance, `deploy/flux7-console.service` runs `next start` on
+`127.0.0.1:8790` after `npm run build`.
 
 ## APIs consumed
 
