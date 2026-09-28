@@ -17,6 +17,8 @@ import {
   fetchTools,
   fetchToolDecisions,
   setToolAction,
+  fetchPendingPins,
+  acceptPins,
   fetchMcpServers,
   fetchGrants,
   createGrant,
@@ -164,6 +166,25 @@ export function useSetToolAction() {
     onSettled: (_d, _e, { agent }) => {
       qc.invalidateQueries({ queryKey: ["mesh", "tool-decisions", agent] });
       qc.invalidateQueries({ queryKey: ["mesh", "policies"] });
+    },
+  });
+}
+
+export function usePendingPins() {
+  return useQuery({
+    queryKey: ["mesh", "pins"],
+    queryFn: fetchPendingPins,
+    refetchInterval: 30000,
+  });
+}
+
+export function useAcceptPins() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (target: { tools?: string[]; server?: string }) => acceptPins(target),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["mesh", "pins"] });
+      qc.invalidateQueries({ queryKey: ["mesh", "tool-decisions"] });
     },
   });
 }

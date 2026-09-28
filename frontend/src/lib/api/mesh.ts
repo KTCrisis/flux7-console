@@ -403,6 +403,42 @@ export interface ToolDecision {
   /** Policy file of the deciding rule; absent for inline policies and the default deny. */
   source_file?: string;
   rule_index: number;
+  /** Pin status of an upstream MCP tool when mesh7 runs with pin_tools; absent otherwise. */
+  pin?: PinStatus;
+}
+
+export type PinStatus = "pinned" | "new" | "changed";
+
+/** An upstream tool held back by pin_tools: added or changed since it was accepted. */
+export interface PendingPin {
+  tool: string;
+  server: string;
+  status: PinStatus;
+  pinned_description?: string;
+  current_description: string;
+  pinned_at?: string;
+  fingerprint: string;
+}
+
+/** GET /tools/pins. Returns null when mesh7 runs without pin_tools (501). */
+export async function fetchPendingPins(): Promise<PendingPin[] | null> {
+  const res = await fetch(`${MESH_BASE}/tools/pins`);
+  if (res.status === 501) return null;
+  if (!res.ok) throw new Error(`Failed to fetch pins: ${res.status}`);
+  return res.json();
+}
+
+/** POST /tools/pins/accept: pin the current version of these tools, or of every pending tool of a server. */
+export async function acceptPins(target: { tools?: string[]; server?: string }): Promise<void> {
+  const res = await fetch(`${MESH_BASE}/tools/pins/accept`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...target, by: "console" }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `Failed to accept: ${res.status}`);
+  }
 }
 
 export type ToolAction = "allow" | "deny" | "human_approval" | "inherit";
