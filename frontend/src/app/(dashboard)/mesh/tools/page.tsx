@@ -68,7 +68,7 @@ export default function ToolsPage() {
       if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
           !t.description?.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
-    });
+    }).sort((a, b) => a.name.localeCompare(b.name));
   }, [tools, search, sourceFilter, familyFilter, reviewOnly, decisionByName]);
 
   const familyCounts = useMemo(() => {
@@ -264,6 +264,12 @@ export default function ToolsPage() {
                   Tool
                 </th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Reading
+                </th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Decision
+                </th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                   Source
                 </th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -271,12 +277,6 @@ export default function ToolsPage() {
                 </th>
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                   Params
-                </th>
-                <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Reading
-                </th>
-                <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Decision
                 </th>
               </tr>
             </thead>
@@ -294,33 +294,10 @@ export default function ToolsPage() {
                       <div>
                         <span className="font-mono text-xs">{t.name}</span>
                         {t.description && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-md">
+                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-xs">
                             {t.description}
                           </p>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider ${color}`}>
-                        <Icon className="h-2.5 w-2.5" />
-                        {t.source}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
-                      {upstream}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex flex-wrap gap-1">
-                        {(t.params ?? []).filter((p) => p.required).map((p) => (
-                          <span key={p.name} className="text-[10px] font-mono text-foreground bg-secondary/60 rounded px-1.5 py-0.5">
-                            {p.name}
-                          </span>
-                        ))}
-                        {(t.params ?? []).filter((p) => !p.required).map((p) => (
-                          <span key={p.name} className="text-[10px] font-mono text-muted-foreground bg-secondary/30 rounded px-1.5 py-0.5">
-                            {p.name}?
-                          </span>
-                        ))}
                       </div>
                     </td>
                     <td className="px-4 py-2.5" title={c?.reasons.join("\n")}>
@@ -342,7 +319,7 @@ export default function ToolsPage() {
                     <td className="px-4 py-2.5">
                       {d ? (
                         <div className="flex items-center gap-1.5 whitespace-nowrap">
-                          {needsReview(c, d) && <TriangleAlert className="h-3 w-3 text-amber-400" />}
+                          <TriangleAlert className={cn("h-3 w-3 shrink-0 text-amber-400", !needsReview(c, d) && "invisible")} />
                           <PolicyBadge policy={d.action} />
                           <span className="text-[10px] font-mono text-muted-foreground">{d.rule}</span>
                           {conditional.length > 0 && (
@@ -359,6 +336,46 @@ export default function ToolsPage() {
                       ) : (
                         <span className="text-[11px] text-muted-foreground">-</span>
                       )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider ${color}`}>
+                        <Icon className="h-2.5 w-2.5" />
+                        {t.source}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                      {upstream}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {(() => {
+                        // Required params first; the rest fold into a count,
+                        // listed in full on hover, so a wide tool stays one line.
+                        const params = [...(t.params ?? [])].sort(
+                          (a, b) => Number(b.required) - Number(a.required)
+                        );
+                        const shown = params.filter((p) => p.required).slice(0, 3);
+                        const hidden = params.length - shown.length;
+                        return (
+                          <div
+                            className="flex items-center gap-1 whitespace-nowrap"
+                            title={params.map((p) => (p.required ? p.name : `${p.name}?`)).join("\n")}
+                          >
+                            {shown.map((p) => (
+                              <span key={p.name} className="text-[10px] font-mono text-foreground bg-secondary/60 rounded px-1.5 py-0.5">
+                                {p.name}
+                              </span>
+                            ))}
+                            {hidden > 0 && (
+                              <span className="text-[10px] font-mono text-muted-foreground">
+                                +{hidden}
+                              </span>
+                            )}
+                            {params.length === 0 && (
+                              <span className="text-[10px] text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );
