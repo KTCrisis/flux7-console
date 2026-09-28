@@ -400,6 +400,31 @@ export interface ToolDecision {
   action: string;
   rule: string;
   conditional?: ConditionalRule[];
+  /** Policy file of the deciding rule; absent for inline policies and the default deny. */
+  source_file?: string;
+  rule_index: number;
+}
+
+export type ToolAction = "allow" | "deny" | "human_approval" | "inherit";
+
+/**
+ * Set one tool's action for one agent. mesh7 edits the agent's policy file,
+ * re-validates, applies at once and records the edit in the trace. "inherit"
+ * removes a rule set from the console; hand-written rules are refused (409).
+ */
+export async function setToolAction(agent: string, tool: string, action: ToolAction): Promise<void> {
+  const res = await fetch(
+    `${MESH_BASE}/policies/${encodeURIComponent(agent)}/tools/${encodeURIComponent(tool)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, by: "console" }),
+    }
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `Failed to set action: ${res.status}`);
+  }
 }
 
 export async function fetchToolDecisions(agent: string): Promise<ToolDecision[]> {

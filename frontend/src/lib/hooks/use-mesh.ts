@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { ToolAction } from "@/lib/api/mesh";
 import {
   fetchTraces,
   fetchApprovals,
@@ -15,6 +16,7 @@ import {
   savePolicyYaml,
   fetchTools,
   fetchToolDecisions,
+  setToolAction,
   fetchMcpServers,
   fetchGrants,
   createGrant,
@@ -151,6 +153,18 @@ export function useToolDecisions(agent: string) {
     queryFn: () => fetchToolDecisions(agent),
     enabled: agent !== "",
     staleTime: 30000,
+  });
+}
+
+export function useSetToolAction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { agent: string; tool: string; action: ToolAction }) =>
+      setToolAction(v.agent, v.tool, v.action),
+    onSettled: (_d, _e, { agent }) => {
+      qc.invalidateQueries({ queryKey: ["mesh", "tool-decisions", agent] });
+      qc.invalidateQueries({ queryKey: ["mesh", "policies"] });
+    },
   });
 }
 
