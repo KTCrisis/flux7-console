@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTools, useMcpServers, usePolicies, useToolDecisions, useSetToolAction } from "@/lib/hooks/use-mesh";
+import { useTools, useMcpServers, usePolicies, useToolDecisions, useSetToolAction, usePendingPins } from "@/lib/hooks/use-mesh";
+import { PendingPins } from "@/components/mesh/pending-pins";
+import { useConsoleRole } from "@/lib/role";
 import type { ToolAction, ToolClassification, ToolDecision } from "@/lib/api/mesh";
 import { TableSkeleton, Skeleton } from "@/components/ui/skeleton";
-import { Search, Wrench, Server, Terminal, Globe, TriangleAlert, X } from "lucide-react";
+import { Search, Wrench, Server, Terminal, Globe, TriangleAlert, X, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SOURCE_ICONS: Record<string, typeof Wrench> = {
@@ -55,6 +57,13 @@ export default function ToolsPage() {
   const [agentChoice, setAgentChoice] = useState("");
   const [serverFilter, setServerFilter] = useState("");
   const setAction = useSetToolAction();
+  const isAdmin = useConsoleRole() === "admin";
+  const { data: pendingPins } = usePendingPins(); // null: pin_tools off
+  const heldByServer = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of pendingPins ?? []) counts[p.server] = (counts[p.server] || 0) + 1;
+    return counts;
+  }, [pendingPins]);
 
   // Agents come from the policies: only concrete names, a glob is not an agent.
   const { data: policies } = usePolicies();
@@ -227,6 +236,12 @@ export default function ToolsPage() {
                     <span className="text-emerald-400">{serverStats[s.name].allow} allow</span>
                     <span className="text-amber-400">{serverStats[s.name].human_approval} ask</span>
                     <span className="text-red-400">{serverStats[s.name].deny} deny</span>
+                    {heldByServer[s.name] > 0 && (
+                      <span className="flex items-center gap-1 text-red-400" title="held back by pinning">
+                        <Pin className="h-2.5 w-2.5" />
+                        {heldByServer[s.name]}
+                      </span>
+                    )}
                     {serverStats[s.name].review > 0 && (
                       <span className="ml-auto flex items-center gap-1 text-amber-400">
                         <TriangleAlert className="h-2.5 w-2.5" />
@@ -344,6 +359,10 @@ export default function ToolsPage() {
         </button>
       </div>
 
+      {pendingPins && pendingPins.length > 0 && (
+        <PendingPins pins={pendingPins} canAccept={isAdmin} />
+      )}
+
       {setAction.isError && (
         <div className="flex items-center justify-between rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
           <span>{setAction.error.message}</span>
@@ -394,6 +413,22 @@ export default function ToolsPage() {
                     <td className="px-4 py-2.5">
                       <div>
                         <span className="font-mono text-xs">{t.name}</span>
+                        {d?.pin === "pinned" && (
+                          <Pin className="ml-1.5 inline h-2.5 w-2.5 text-muted-foreground/60" aria-label="pinned" />
+                        )}
+                        {(d?.pin === "new" || d?.pin === "changed") && (
+                          <span
+                            className={cn(
+                              "ml-1.5 rounded border px-1 py-px text-[9px] font-mono uppercase",
+                              d.pin === "new"
+                                ? "border-red-500/30 bg-red-500/10 text-red-400"
+                                : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                            )}
+                            title="held back by pinning: see the banner above"
+                          >
+                            {d.pin}
+                          </span>
+                        )}
                         {t.description && (
                           <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-xs">
                             {t.description}
@@ -423,7 +458,7 @@ export default function ToolsPage() {
                           <TriangleAlert className={cn("h-3 w-3 shrink-0 text-amber-400", !needsReview(c, d) && "invisible")} />
                           <select
                             value={d.action}
-                            disabled={setAction.isPending}
+                            disabled={setAction.isPending || !isAdmin}
                             aria-label={`Action for ${t.name}`}
                             onChange={(e) =>
                               setAction.mutate({ agent, tool: t.name, action: e.target.value as ToolAction })
