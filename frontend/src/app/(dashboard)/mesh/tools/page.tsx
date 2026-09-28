@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTools, useMcpServers, usePolicies, useToolDecisions } from "@/lib/hooks/use-mesh";
-import type { ToolClassification, ToolDecision } from "@/lib/api/mesh";
-import { PolicyBadge } from "@/components/ui/policy-badge";
+import { useTools, useMcpServers, usePolicies, useToolDecisions, useSetToolAction } from "@/lib/hooks/use-mesh";
+import type { ToolAction, ToolClassification, ToolDecision } from "@/lib/api/mesh";
 import { TableSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { Search, Wrench, Server, Terminal, Globe, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,6 +17,12 @@ const SOURCE_COLORS: Record<string, string> = {
   mcp: "bg-violet-500/10 text-violet-400 border-violet-500/20",
   cli: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   rest: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+};
+
+const ACTION_STYLES: Record<string, string> = {
+  allow: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  deny: "bg-red-500/10 text-red-400 border-red-500/20",
+  human_approval: "bg-amber-500/10 text-amber-400 border-amber-500/20",
 };
 
 const ACCESS_COLORS: Record<string, string> = {
@@ -41,6 +46,8 @@ export default function ToolsPage() {
   const [familyFilter, setFamilyFilter] = useState("");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [agentChoice, setAgentChoice] = useState("");
+  const [serverFilter, setServerFilter] = useState("");
+  const setAction = useSetToolAction();
 
   // Agents come from the policies: only concrete names, a glob is not an agent.
   const { data: policies } = usePolicies();
@@ -63,13 +70,27 @@ export default function ToolsPage() {
     if (!tools) return [];
     return tools.filter((t) => {
       if (sourceFilter && t.source !== sourceFilter) return false;
+      if (serverFilter && (t.mcp_server || t.cli_meta?.bin) !== serverFilter) return false;
       if (familyFilter && t.classification?.family !== familyFilter) return false;
       if (reviewOnly && !needsReview(t.classification, decisionByName.get(t.name))) return false;
       if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
           !t.description?.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     }).sort((a, b) => a.name.localeCompare(b.name));
-  }, [tools, search, sourceFilter, familyFilter, reviewOnly, decisionByName]);
+  }, [tools, search, sourceFilter, serverFilter, familyFilter, reviewOnly, decisionByName]);
+
+  // Per upstream, for the selected agent: what the policy does with its tools.
+  const serverStats = useMemo(() => {
+    const stats: Record<string, { allow: number; human_approval: number; deny: number; review: number }> = {};
+    for (const t of tools ?? []) {
+      if (!t.mcp_server) continue;
+      const d = decisionByName.get(t.name);
+      const st = (stats[t.mcp_server] ??= { allow: 0, human_approval: 0, deny: 0, review: 0 });
+      if (d && d.action in st) st[d.action as "allow" | "human_approval" | "deny"]++;
+      if (needsReview(t.classification, d)) st.review++;
+    }
+    return stats;
+  }, [tools, decisionByName]);
 
   const familyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -134,7 +155,14 @@ export default function ToolsPage() {
             ))
           ) : (
             (servers ?? []).map((s) => (
-              <div key={s.name} className="rounded-lg border border-border bg-card p-3">
+              <button
+                key={s.name}
+                onClick={() => setServerFilter(serverFilter === s.name ? "" : s.name)}
+                className={cn(
+                  "rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary/50",
+                  serverFilter === s.name ? "border-primary" : "border-border"
+                )}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Server className="h-3.5 w-3.5 text-muted-foreground" />
@@ -161,7 +189,20 @@ export default function ToolsPage() {
                     </>
                   ) : null}
                 </div>
-              </div>
+                {serverStats[s.name] && (
+                  <div className="mt-1.5 flex items-center gap-2 text-[10px] font-mono tabular-nums">
+                    <span className="text-emerald-400">{serverStats[s.name].allow} allow</span>
+                    <span className="text-amber-400">{serverStats[s.name].human_approval} ask</span>
+                    <span className="text-red-400">{serverStats[s.name].deny} deny</span>
+                    {serverStats[s.name].review > 0 && (
+                      <span className="ml-auto flex items-center gap-1 text-amber-400">
+                        <TriangleAlert className="h-2.5 w-2.5" />
+                        {serverStats[s.name].review}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </button>
             ))
           )}
         </div>
@@ -252,6 +293,15 @@ export default function ToolsPage() {
         </button>
       </div>
 
+      {setAction.isError && (
+        <div className="flex items-center justify-between rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+          <span>{setAction.error.message}</span>
+          <button onClick={() => setAction.reset()} className="text-red-300 hover:text-red-200">
+            dismiss
+          </button>
+        </div>
+      )}
+
       {/* Tool list */}
       {loadingTools ? (
         <TableSkeleton rows={10} cols={6} />
@@ -320,7 +370,23 @@ export default function ToolsPage() {
                       {d ? (
                         <div className="flex items-center gap-1.5 whitespace-nowrap">
                           <TriangleAlert className={cn("h-3 w-3 shrink-0 text-amber-400", !needsReview(c, d) && "invisible")} />
-                          <PolicyBadge policy={d.action} />
+                          <select
+                            value={d.action}
+                            disabled={setAction.isPending}
+                            aria-label={`Action for ${t.name}`}
+                            onChange={(e) =>
+                              setAction.mutate({ agent, tool: t.name, action: e.target.value as ToolAction })
+                            }
+                            className={cn(
+                              "cursor-pointer appearance-none rounded border px-2 py-0.5 text-[10px] font-medium font-mono uppercase tracking-wider leading-none focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50",
+                              ACTION_STYLES[d.action] ?? "bg-secondary text-muted-foreground border-border"
+                            )}
+                          >
+                            <option value="allow">allow</option>
+                            <option value="human_approval">approval</option>
+                            <option value="deny">deny</option>
+                            <option value="inherit">reset</option>
+                          </select>
                           <span className="text-[10px] font-mono text-muted-foreground">{d.rule}</span>
                           {conditional.length > 0 && (
                             <span
