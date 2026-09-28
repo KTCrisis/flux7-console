@@ -9,7 +9,6 @@ import {
   Shield,
   LayoutDashboard,
   Radio,
-  GitBranch,
   Users,
   Brain,
   Wrench,
@@ -27,6 +26,7 @@ import { useHealth, useApprovals } from "@/lib/hooks/use-mesh";
 type NavItem = {
   href: string;
   label: string;
+  also?: string[]; // other paths that light this entry
   icon: typeof LayoutDashboard;
   badge?: "approvals";
 };
@@ -36,36 +36,45 @@ type NavGroup = {
   items: NavItem[];
 };
 
+// The sidebar follows the mesh's decision chain: what exists (catalog), what
+// is written down (rules, L0), who decides when nothing is (delegation, L1),
+// and what happened (observe). Approvals sits on top: it is the one queue
+// that waits for a human (L2).
 const navGroups: NavGroup[] = [
   {
     label: "",
     items: [
       { href: "/mesh", label: "Overview", icon: LayoutDashboard },
+      { href: "/mesh/approvals", label: "Approvals", icon: Shield, badge: "approvals" },
+    ],
+  },
+  {
+    label: "Catalog",
+    items: [
       { href: "/mesh/agents", label: "Agents", icon: Cpu },
+      { href: "/mesh/tools", label: "Tools", icon: Wrench },
+    ],
+  },
+  {
+    label: "Rules",
+    items: [
+      { href: "/mesh/policies", label: "Policies", icon: FileText },
+      { href: "/mesh/grants", label: "Grants", icon: Key },
+    ],
+  },
+  {
+    label: "Delegation",
+    items: [
+      { href: "/mesh/memory", label: "Memory", icon: Brain },
+      { href: "/mesh/supervisor", label: "Supervisor", icon: Bot },
     ],
   },
   {
     label: "Observe",
     items: [
-      { href: "/mesh/traces", label: "Traces", icon: Activity },
+      // OTEL is a second view of the same calls, reached from a tab on Traces.
+      { href: "/mesh/traces", label: "Traces", icon: Activity, also: ["/mesh/otel"] },
       { href: "/mesh/sessions", label: "Sessions", icon: Users },
-      { href: "/mesh/otel", label: "OTEL", icon: GitBranch },
-    ],
-  },
-  {
-    label: "Govern",
-    items: [
-      { href: "/mesh/policies", label: "Policies", icon: FileText },
-      { href: "/mesh/approvals", label: "Approvals", icon: Shield, badge: "approvals" },
-      { href: "/mesh/supervisor", label: "Supervisor", icon: Bot },
-      { href: "/mesh/grants", label: "Grants", icon: Key },
-      { href: "/mesh/tools", label: "Tools", icon: Wrench },
-    ],
-  },
-  {
-    label: "Storage",
-    items: [
-      { href: "/mesh/memory", label: "Memory", icon: Brain },
     ],
   },
 ];
@@ -187,8 +196,10 @@ export default function DashboardLayout({
                 <div className="mx-auto mb-1.5 w-5 h-px bg-border" />
               )}
               <div className="space-y-0.5">
-                {group.items.map(({ href, label, icon: Icon, badge }) => {
-                  const active = href === "/mesh" ? pathname === href : pathname.startsWith(href);
+                {group.items.map(({ href, label, icon: Icon, badge, also }) => {
+                  const active = href === "/mesh"
+                    ? pathname === href
+                    : [href, ...(also ?? [])].some((p) => pathname.startsWith(p));
                   const showBadge = badge === "approvals" && pendingCount > 0;
                   return (
                     <Link

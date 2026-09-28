@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { TraceTabs } from "@/components/mesh/trace-tabs";
 import { useTraces } from "@/lib/hooks/use-mesh";
 import { formatDuration, timeAgo } from "@/lib/utils";
 import { PolicyBadge } from "@/components/ui/policy-badge";
@@ -54,6 +55,8 @@ export default function TracesPage() {
           <IntegrityBadge />
         </div>
       </div>
+
+      <TraceTabs />
 
       <div className="flex flex-wrap items-center gap-2">
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
