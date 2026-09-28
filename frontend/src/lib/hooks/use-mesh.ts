@@ -14,6 +14,7 @@ import {
   fetchPolicyYaml,
   savePolicyYaml,
   fetchTools,
+  fetchToolDecisions,
   fetchMcpServers,
   fetchGrants,
   createGrant,
@@ -140,6 +141,15 @@ export function useTools() {
   return useQuery({
     queryKey: ["mesh", "tools"],
     queryFn: fetchTools,
+    staleTime: 30000,
+  });
+}
+
+export function useToolDecisions(agent: string) {
+  return useQuery({
+    queryKey: ["mesh", "tool-decisions", agent],
+    queryFn: () => fetchToolDecisions(agent),
+    enabled: agent !== "",
     staleTime: 30000,
   });
 }

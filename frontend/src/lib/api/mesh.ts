@@ -369,6 +369,43 @@ export interface ToolEntry {
   source: string;
   mcp_server?: string;
   cli_meta?: CliMeta;
+  /** The mesh's reading of the tool, from declared metadata only. */
+  classification?: ToolClassification;
+}
+
+/**
+ * Where the meaning of a call lives (see flux7-mesh registry/classify.go).
+ * named: the name states the effect. generic: an interpreter (SQL, shell,
+ * code, CLI dispatcher), the argument decides.
+ */
+export interface ToolClassification {
+  family: "named" | "generic";
+  access: "read" | "write" | "unknown";
+  reasons: string[];
+}
+
+export interface ConditionalRule {
+  action: string;
+  rule: string;
+  field: string;
+  operator: string;
+}
+
+/** One row of GET /tools/decisions: the policy's answer before any call. */
+export interface ToolDecision {
+  name: string;
+  source: string;
+  mcp_server?: string;
+  classification: ToolClassification;
+  action: string;
+  rule: string;
+  conditional?: ConditionalRule[];
+}
+
+export async function fetchToolDecisions(agent: string): Promise<ToolDecision[]> {
+  const res = await fetch(`${MESH_BASE}/tools/decisions?agent=${encodeURIComponent(agent)}`);
+  if (!res.ok) throw new Error(`Failed to fetch tool decisions: ${res.status}`);
+  return res.json();
 }
 
 export async function fetchTools(): Promise<ToolEntry[]> {
