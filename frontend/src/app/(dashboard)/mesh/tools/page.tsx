@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTools, useMcpServers, usePolicies, useToolDecisions, useSetToolAction } from "@/lib/hooks/use-mesh";
 import type { ToolAction, ToolClassification, ToolDecision } from "@/lib/api/mesh";
 import { TableSkeleton, Skeleton } from "@/components/ui/skeleton";
-import { Search, Wrench, Server, Terminal, Globe, TriangleAlert } from "lucide-react";
+import { Search, Wrench, Server, Terminal, Globe, TriangleAlert, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SOURCE_ICONS: Record<string, typeof Wrench> = {
@@ -33,6 +33,13 @@ const ACCESS_COLORS: Record<string, string> = {
 
 // A tool the policy lets through without being a plain named read is worth a
 // second look: a write, a tool with no signal, or an interpreter.
+// The upstream a tool comes from: its MCP server, or the declared name of a
+// CLI tool (the part before the dot; the binary is a path, not a name).
+function upstreamOf(t: { name: string; source: string; mcp_server?: string }): string {
+  if (t.mcp_server) return t.mcp_server;
+  return t.source === "cli" ? t.name.split(".")[0] : "";
+}
+
 function needsReview(c?: ToolClassification, d?: ToolDecision): boolean {
   if (!c || !d || d.action !== "allow") return false;
   return c.family === "generic" || c.access !== "read";
@@ -70,7 +77,7 @@ export default function ToolsPage() {
     if (!tools) return [];
     return tools.filter((t) => {
       if (sourceFilter && t.source !== sourceFilter) return false;
-      if (serverFilter && (t.mcp_server || t.cli_meta?.bin) !== serverFilter) return false;
+      if (serverFilter && upstreamOf(t) !== serverFilter) return false;
       if (familyFilter && t.classification?.family !== familyFilter) return false;
       if (reviewOnly && !needsReview(t.classification, decisionByName.get(t.name))) return false;
       if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
@@ -83,14 +90,31 @@ export default function ToolsPage() {
   const serverStats = useMemo(() => {
     const stats: Record<string, { allow: number; human_approval: number; deny: number; review: number }> = {};
     for (const t of tools ?? []) {
-      if (!t.mcp_server) continue;
+      const up = upstreamOf(t);
+      if (!up) continue;
       const d = decisionByName.get(t.name);
-      const st = (stats[t.mcp_server] ??= { allow: 0, human_approval: 0, deny: 0, review: 0 });
+      const st = (stats[up] ??= { allow: 0, human_approval: 0, deny: 0, review: 0 });
       if (d && d.action in st) st[d.action as "allow" | "human_approval" | "deny"]++;
       if (needsReview(t.classification, d)) st.review++;
     }
     return stats;
   }, [tools, decisionByName]);
+
+  // Cards: the MCP servers mesh7 connects to, then one per CLI binary. CLI
+  // tools are declared, not connected, so they have no live status.
+  const upstreams = useMemo(() => {
+    const cards = (servers ?? []).map((s) => ({
+      name: s.name, transport: s.transport, status: s.status, count: s.tools.length,
+    }));
+    const bins: Record<string, number> = {};
+    for (const t of tools ?? []) {
+      if (t.source === "cli") bins[upstreamOf(t)] = (bins[upstreamOf(t)] || 0) + 1;
+    }
+    for (const [bin, count] of Object.entries(bins).sort()) {
+      cards.push({ name: bin, transport: "cli", status: "declared", count });
+    }
+    return cards;
+  }, [servers, tools]);
 
   const familyCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -110,8 +134,9 @@ export default function ToolsPage() {
   const genericByServer = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of tools ?? []) {
-      if (t.mcp_server && t.classification?.family === "generic") {
-        counts[t.mcp_server] = (counts[t.mcp_server] || 0) + 1;
+      const up = upstreamOf(t);
+      if (up && t.classification?.family === "generic") {
+        counts[up] = (counts[up] || 0) + 1;
       }
     }
     return counts;
@@ -143,7 +168,7 @@ export default function ToolsPage() {
       {/* MCP Servers status */}
       <div>
         <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-          Upstream servers
+          Upstreams
         </span>
         <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {loadingServers ? (
@@ -154,7 +179,7 @@ export default function ToolsPage() {
               </div>
             ))
           ) : (
-            (servers ?? []).map((s) => (
+            upstreams.map((s) => (
               <button
                 key={s.name}
                 onClick={() => setServerFilter(serverFilter === s.name ? "" : s.name)}
@@ -171,7 +196,7 @@ export default function ToolsPage() {
                   <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <span className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      s.status === "ready" ? "bg-emerald-400" : "bg-red-400"
+                      s.status === "ready" ? "bg-emerald-400" : s.status === "declared" ? "bg-muted-foreground" : "bg-red-400"
                     )} />
                     {s.status}
                   </span>
@@ -179,7 +204,7 @@ export default function ToolsPage() {
                 <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
                   <span className="font-mono">{s.transport}</span>
                   <span>·</span>
-                  <span className="font-mono tabular-nums">{s.tools.length} tools</span>
+                  <span className="font-mono tabular-nums">{s.count} tools</span>
                   {genericByServer[s.name] ? (
                     <>
                       <span>·</span>
@@ -217,9 +242,27 @@ export default function ToolsPage() {
             placeholder="Search tools..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-md border border-border bg-background pl-9 pr-3 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border border-border bg-background pl-9 pr-8 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+        {serverFilter && (
+          <button
+            onClick={() => setServerFilter("")}
+            title="Clear the upstream filter"
+            className="flex items-center gap-1.5 rounded-md border border-primary bg-primary/15 px-2.5 py-1 text-[11px] font-mono font-medium text-primary"
+          >
+            upstream: {serverFilter} <span aria-hidden>×</span>
+          </button>
+        )}
         <div className="flex items-center rounded-md border border-border overflow-hidden">
           <button
             onClick={() => setSourceFilter("")}
