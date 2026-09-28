@@ -184,13 +184,21 @@ export default function ToolsPage() {
                 key={s.name}
                 onClick={() => setServerFilter(serverFilter === s.name ? "" : s.name)}
                 className={cn(
-                  "rounded-lg border bg-card p-3 text-left transition-colors hover:border-primary/50",
-                  serverFilter === s.name ? "border-primary" : "border-border"
+                  "rounded-lg border p-3 text-left transition-colors hover:border-primary/50",
+                  // Same hues as the source badges below: violet MCP, amber CLI.
+                  s.transport === "cli" ? "bg-amber-500/[0.04]" : "bg-card",
+                  serverFilter === s.name
+                    ? "border-primary"
+                    : s.transport === "cli" ? "border-amber-500/25" : "border-border"
                 )}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Server className="h-3.5 w-3.5 text-muted-foreground" />
+                    {s.transport === "cli" ? (
+                      <Terminal className="h-3.5 w-3.5 text-amber-400/80" />
+                    ) : (
+                      <Server className="h-3.5 w-3.5 text-violet-400/80" />
+                    )}
                     <span className="text-sm font-medium truncate">{s.name}</span>
                   </div>
                   <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
