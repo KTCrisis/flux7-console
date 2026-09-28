@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTools, useMcpServers } from "@/lib/hooks/use-mesh";
+import { useTools, useMcpServers, usePolicies, useToolDecisions } from "@/lib/hooks/use-mesh";
+import type { ToolClassification, ToolDecision } from "@/lib/api/mesh";
+import { PolicyBadge } from "@/components/ui/policy-badge";
 import { TableSkeleton, Skeleton } from "@/components/ui/skeleton";
-import { Search, Wrench, Server, Terminal, Globe } from "lucide-react";
+import { Search, Wrench, Server, Terminal, Globe, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SOURCE_ICONS: Record<string, typeof Wrench> = {
@@ -18,21 +20,81 @@ const SOURCE_COLORS: Record<string, string> = {
   rest: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
 };
 
+const ACCESS_COLORS: Record<string, string> = {
+  read: "text-emerald-400",
+  write: "text-amber-400",
+  unknown: "text-muted-foreground",
+};
+
+// A tool the policy lets through without being a plain named read is worth a
+// second look: a write, a tool with no signal, or an interpreter.
+function needsReview(c?: ToolClassification, d?: ToolDecision): boolean {
+  if (!c || !d || d.action !== "allow") return false;
+  return c.family === "generic" || c.access !== "read";
+}
+
 export default function ToolsPage() {
   const { data: tools, isLoading: loadingTools } = useTools();
   const { data: servers, isLoading: loadingServers } = useMcpServers();
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
+  const [familyFilter, setFamilyFilter] = useState("");
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const [agentChoice, setAgentChoice] = useState("");
+
+  // Agents come from the policies: only concrete names, a glob is not an agent.
+  const { data: policies } = usePolicies();
+  const agents = useMemo(() => {
+    const names = new Set<string>();
+    for (const p of policies ?? []) {
+      if (p.agent && !/[*?]/.test(p.agent)) names.add(p.agent);
+    }
+    return [...names].sort();
+  }, [policies]);
+  const agent = agentChoice || (agents.includes("claude") ? "claude" : agents[0] ?? "");
+  const { data: decisions } = useToolDecisions(agent);
+  const decisionByName = useMemo(() => {
+    const m = new Map<string, ToolDecision>();
+    for (const d of decisions ?? []) m.set(d.name, d);
+    return m;
+  }, [decisions]);
 
   const filtered = useMemo(() => {
     if (!tools) return [];
     return tools.filter((t) => {
       if (sourceFilter && t.source !== sourceFilter) return false;
+      if (familyFilter && t.classification?.family !== familyFilter) return false;
+      if (reviewOnly && !needsReview(t.classification, decisionByName.get(t.name))) return false;
       if (search && !t.name.toLowerCase().includes(search.toLowerCase()) &&
           !t.description?.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [tools, search, sourceFilter]);
+  }, [tools, search, sourceFilter, familyFilter, reviewOnly, decisionByName]);
+
+  const familyCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of tools ?? []) {
+      const f = t.classification?.family;
+      if (f) counts[f] = (counts[f] || 0) + 1;
+    }
+    return counts;
+  }, [tools]);
+
+  const reviewCount = useMemo(
+    () => (tools ?? []).filter((t) => needsReview(t.classification, decisionByName.get(t.name))).length,
+    [tools, decisionByName]
+  );
+
+  // Per upstream: how many of its tools are interpreters.
+  const genericByServer = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const t of tools ?? []) {
+      if (t.mcp_server && t.classification?.family === "generic") {
+        counts[t.mcp_server] = (counts[t.mcp_server] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [tools]);
 
   const sourceCounts = useMemo(() => {
     if (!tools) return {};
@@ -90,6 +152,14 @@ export default function ToolsPage() {
                   <span className="font-mono">{s.transport}</span>
                   <span>·</span>
                   <span className="font-mono tabular-nums">{s.tools.length} tools</span>
+                  {genericByServer[s.name] ? (
+                    <>
+                      <span>·</span>
+                      <span className="font-mono tabular-nums text-amber-400">
+                        {genericByServer[s.name]} generic
+                      </span>
+                    </>
+                  ) : null}
                 </div>
               </div>
             ))
@@ -132,11 +202,59 @@ export default function ToolsPage() {
             </button>
           ))}
         </div>
+        <div className="flex items-center rounded-md border border-border overflow-hidden">
+          <button
+            onClick={() => setFamilyFilter("")}
+            className={cn(
+              "px-2.5 py-1 text-[11px] font-mono font-medium transition-colors",
+              !familyFilter ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Any family
+          </button>
+          {Object.entries(familyCounts).map(([family, count]) => (
+            <button
+              key={family}
+              onClick={() => setFamilyFilter(familyFilter === family ? "" : family)}
+              className={cn(
+                "px-2.5 py-1 text-[11px] font-mono font-medium transition-colors",
+                familyFilter === family ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {family} ({count})
+            </button>
+          ))}
+        </div>
+        {agents.length > 0 && (
+          <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            Decisions for
+            <select
+              value={agent}
+              onChange={(e) => setAgentChoice(e.target.value)}
+              className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {agents.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button
+          onClick={() => setReviewOnly(!reviewOnly)}
+          title="Allowed without being a plain named read: a write, a tool with no signal, or an interpreter"
+          className={cn(
+            "flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[11px] font-mono font-medium transition-colors",
+            reviewOnly ? "bg-amber-500/15 text-amber-400" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <TriangleAlert className="h-3 w-3" />
+          To review ({reviewCount})
+        </button>
       </div>
 
       {/* Tool list */}
       {loadingTools ? (
-        <TableSkeleton rows={10} cols={4} />
+        <TableSkeleton rows={10} cols={6} />
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-x-auto">
           <table className="w-full text-sm">
@@ -154,6 +272,12 @@ export default function ToolsPage() {
                 <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                   Params
                 </th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Reading
+                </th>
+                <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Decision
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -161,6 +285,9 @@ export default function ToolsPage() {
                 const Icon = SOURCE_ICONS[t.source] ?? Wrench;
                 const color = SOURCE_COLORS[t.source] ?? "bg-secondary text-muted-foreground border-border";
                 const upstream = t.mcp_server || t.cli_meta?.bin || t.base_url || "-";
+                const c = t.classification;
+                const d = decisionByName.get(t.name);
+                const conditional = d?.conditional ?? [];
                 return (
                   <tr key={t.name} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
                     <td className="px-4 py-2.5">
@@ -196,12 +323,49 @@ export default function ToolsPage() {
                         ))}
                       </div>
                     </td>
+                    <td className="px-4 py-2.5" title={c?.reasons.join("\n")}>
+                      {c ? (
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          {c.family === "generic" && (
+                            <span className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-amber-400">
+                              generic
+                            </span>
+                          )}
+                          <span className={cn("text-[11px] font-mono", ACCESS_COLORS[c.access])}>
+                            {c.access}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {d ? (
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          {needsReview(c, d) && <TriangleAlert className="h-3 w-3 text-amber-400" />}
+                          <PolicyBadge policy={d.action} />
+                          <span className="text-[10px] font-mono text-muted-foreground">{d.rule}</span>
+                          {conditional.length > 0 && (
+                            <span
+                              className="text-[10px] font-mono text-sky-400"
+                              title={conditional
+                                .map((r) => `${r.action} if ${r.field} ${r.operator} (${r.rule})`)
+                                .join("\n")}
+                            >
+                              +{conditional.length} if
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">-</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     No tools found
                   </td>
                 </tr>
