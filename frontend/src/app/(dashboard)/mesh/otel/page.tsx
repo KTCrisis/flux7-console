@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { TraceTabs } from "@/components/mesh/trace-tabs";
 import { useOtelTraces } from "@/lib/hooks/use-mesh";
 import { flattenOtlp, type FlatSpan } from "@/lib/api/mesh";
 import { PolicyBadge } from "@/components/ui/policy-badge";
@@ -76,6 +77,8 @@ export default function OtelTracesPage() {
           </div>
         </div>
       </div>
+
+      <TraceTabs />
 
       <div className="flex flex-wrap gap-2">
         <select
