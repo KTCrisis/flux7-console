@@ -130,6 +130,36 @@ export async function forgetPrecedents(tool: string, agent: string): Promise<voi
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
 }
 
+export interface ApprovalSettings {
+  timeout_seconds: number;
+  wait_seconds: number;
+  auto_approve: boolean;
+  min_approvals: number;
+  auto_approve_writes: boolean;
+}
+
+export async function fetchApprovalSettings(): Promise<{
+  settings: ApprovalSettings;
+  config: string;
+  editable: boolean;
+  precedent: boolean;
+}> {
+  const res = await fetch(`${MESH_BASE}/approvals/settings`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to fetch approval settings: ${res.status}`);
+  return res.json();
+}
+
+export async function saveApprovalSettings(s: ApprovalSettings): Promise<{ changed: string[]; backup?: string }> {
+  const res = await fetch(`${MESH_BASE}/approvals/settings`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...s, by: "console" }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+  return body;
+}
+
 export interface ApprovalDetail extends ApprovalSummary {
   recent_traces: TraceEntry[];
   active_grants: unknown[];
