@@ -8,6 +8,7 @@ import {
   useTraces,
 } from "@/lib/hooks/use-mesh";
 import { resolverOf, type Resolver } from "@/lib/api/mesh";
+import { Precedents } from "@/components/approvals/precedents";
 import { cn, timeAgo } from "@/lib/utils";
 import { PolicyMini } from "@/components/ui/policy-badge";
 import { DecisionBadge } from "@/components/ui/decision-badge";
@@ -286,6 +287,8 @@ export default function ApprovalsPage() {
           </div>
         </div>
       )}
+
+      <Precedents />
     </div>
   );
 }

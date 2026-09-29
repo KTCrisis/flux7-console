@@ -98,6 +98,38 @@ export function resolverOf(resolvedBy: string | undefined, status: string): Reso
   return "human"; // http:, cli, tty, human:, console
 }
 
+export interface Precedent {
+  tool: string;
+  agent: string;
+  human_approved: number;
+  other_approved: number;
+  refused: number;
+  untagged: number;
+  last: string;
+  auto_approvable: boolean;
+  would_auto_approve: boolean;
+}
+
+export async function fetchPrecedents(): Promise<{
+  enabled: boolean;
+  reason?: string;
+  min_approvals?: number;
+  precedents: Precedent[];
+}> {
+  const res = await fetch(`${MESH_BASE}/approvals/precedents`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to fetch precedents: ${res.status}`);
+  return res.json();
+}
+
+export async function forgetPrecedents(tool: string, agent: string): Promise<void> {
+  const res = await fetch(`${MESH_BASE}/approvals/precedents/forget`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ tool, agent }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
+}
+
 export interface ApprovalDetail extends ApprovalSummary {
   recent_traces: TraceEntry[];
   active_grants: unknown[];
