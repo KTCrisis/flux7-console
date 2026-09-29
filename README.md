@@ -129,3 +129,7 @@ For a long-running instance, `deploy/flux7-console.service` runs `next start` on
 - [flux7-memory](https://github.com/KTCrisis/flux7-memory) — governed memory substrate (Go)
 - [flux7-supervisor](https://github.com/KTCrisis/flux7-supervisor) — L1 evaluation agent (Python)
 - [docs.flux7.art](https://docs.flux7.art) — documentation
+
+## License
+
+Apache 2.0
