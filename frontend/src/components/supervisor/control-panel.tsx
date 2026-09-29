@@ -20,9 +20,13 @@ function uptime(s: number): string {
   return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
 }
 
+// Signals where a high value is reassuring; every other one (a harm, an
+// injection) is red when high.
+const SAFE_SIGNALS = new Set(["in_scope", "project", "approve", "mission_fit"]);
+
 // Probability chip: the bar shows the value, the label names the signal.
-function Signal({ name, value }: { name: string; value: number }) {
-  const risky = name === "destructive" || name === "injection" || name === "deny";
+export function Signal({ name, value }: { name: string; value: number }) {
+  const risky = !SAFE_SIGNALS.has(name);
   const tone = risky
     ? value >= 0.5 ? "bg-red-400/70" : "bg-red-400/25"
     : value >= 0.5 ? "bg-emerald-400/70" : "bg-emerald-400/25";
@@ -37,7 +41,7 @@ function Signal({ name, value }: { name: string; value: number }) {
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+export function Label({ children }: { children: React.ReactNode }) {
   return <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{children}</span>;
 }
 
@@ -185,8 +189,14 @@ export function Sup7ControlPanel() {
           <div className="rounded-lg border border-border bg-card p-4 space-y-2 text-xs">
             <Label>Thresholds</Label>
             <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 font-mono">
-              <dt className="text-muted-foreground">auto-decide above</dt>
-              <dd className="tabular-nums text-right">{config.data.evaluator.confidence_threshold}</dd>
+              {config.data.evaluator.providers.map((p) => (
+                <span key={`t-${p.provider}`} className="contents">
+                  <dt className="text-muted-foreground">{String(p.provider)} decides above</dt>
+                  <dd className="tabular-nums text-right">
+                    {String(p.confidence_threshold ?? config.data!.evaluator.confidence_threshold)}
+                  </dd>
+                </span>
+              ))}
               <dt className="text-muted-foreground">breaker</dt>
               <dd className="tabular-nums text-right">
                 {config.data.evaluator.breaker_failures} fails · {config.data.evaluator.breaker_cooldown_s}s
@@ -199,8 +209,10 @@ export function Sup7ControlPanel() {
                     <dd className="tabular-nums text-right">{String(p.destructive_max)}</dd>
                     <dt className="text-muted-foreground">jev in scope ≥</dt>
                     <dd className="tabular-nums text-right">{String(p.in_scope_min)}</dd>
-                    <dt className="text-muted-foreground">jev deny ≥</dt>
-                    <dd className="tabular-nums text-right">{String(p.deny_min)}</dd>
+                    <dt className="text-muted-foreground">jev deny ≥ … if in scope &lt;</dt>
+                    <dd className="tabular-nums text-right">{String(p.deny_min)} · {String(p.deny_in_scope_max ?? "")}</dd>
+                    <dt className="text-muted-foreground">jev project ≥</dt>
+                    <dd className="tabular-nums text-right">{String(p.project_min ?? "")}</dd>
                   </span>
                 ))}
             </dl>
