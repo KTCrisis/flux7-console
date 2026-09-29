@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTraces } from "@/lib/hooks/use-mesh";
 import { cn, timeAgo } from "@/lib/utils";
 import { DecisionBadge } from "@/components/ui/decision-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck, Bot, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Sup7ControlPanel } from "@/components/supervisor/control-panel";
+import { Sup7ScopeQuestions } from "@/components/supervisor/scope-questions";
+import { Sup7FileEditor } from "@/components/supervisor/file-editor";
+import { Sup7BenchPanel } from "@/components/supervisor/bench-panel";
 import { useSup7Status } from "@/lib/hooks/use-sup7";
 
 function isL1Resolution(approvedBy: string): boolean {
@@ -21,6 +24,7 @@ export default function SupervisorPage() {
   // it has not resolved anything among the recent traces.
   const sup7 = useSup7Status();
   const sup7Reachable = !!sup7.data;
+  const [tab, setTab] = useState<"overview" | "edit" | "evaluate">("overview");
 
   const stats = useMemo(() => {
     if (!traces) return null;
@@ -97,7 +101,31 @@ export default function SupervisorPage() {
         </div>
       </div>
 
+      {sup7Reachable && (
+        <div className="flex items-center rounded-md border border-border overflow-hidden w-fit">
+          {([["overview", "Overview"], ["edit", "Edit YAML"], ["evaluate", "Evaluate"]] as const).map(([t, label]) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={cn(
+                "px-3 py-1.5 text-[11px] font-mono font-medium transition-colors",
+                tab === t ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === "edit" && sup7Reachable ? (
+        <Sup7FileEditor />
+      ) : tab === "evaluate" && sup7Reachable ? (
+        <Sup7BenchPanel />
+      ) : (
+      <>
       <Sup7ControlPanel />
+      {sup7Reachable && <Sup7ScopeQuestions />}
 
       <div className="pt-2 border-t border-border">
         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -300,6 +328,8 @@ export default function SupervisorPage() {
             </div>
           )}
         </>
+      )}
+      </>
       )}
     </div>
   );

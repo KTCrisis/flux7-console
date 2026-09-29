@@ -13,6 +13,9 @@ export function makeUpstreamProxy(baseUrl: string, token: string) {
     const headers = new Headers();
     const contentType = req.headers.get("content-type");
     if (contentType) headers.set("content-type", contentType);
+    // optimistic concurrency for text edits (sup7 /files): the fingerprint read, sent back
+    const ifMatch = req.headers.get("if-match");
+    if (ifMatch) headers.set("if-match", ifMatch);
     if (token) headers.set("authorization", `Bearer ${token}`);
 
     const hasBody = req.method !== "GET" && req.method !== "HEAD";
@@ -23,11 +26,11 @@ export function makeUpstreamProxy(baseUrl: string, token: string) {
       cache: "no-store",
     });
 
-    return new Response(res.body, {
-      status: res.status,
-      headers: {
-        "content-type": res.headers.get("content-type") ?? "application/json",
-      },
-    });
+    const out: Record<string, string> = {
+      "content-type": res.headers.get("content-type") ?? "application/json",
+    };
+    const etag = res.headers.get("etag");
+    if (etag) out.etag = etag;
+    return new Response(res.body, { status: res.status, headers: out });
   };
 }
