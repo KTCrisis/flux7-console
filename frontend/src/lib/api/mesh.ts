@@ -80,6 +80,22 @@ export interface ApprovalSummary {
   params: Record<string, unknown>;
   status: string;
   created_at: string;
+  resolved_by?: string;
+  resolved_at?: string;
+  reasoning?: string;
+  confidence?: number;
+}
+
+/** Who settled an approval, from its resolved_by. */
+export type Resolver = "sup7" | "human" | "mem7" | "timeout" | "pending";
+
+export function resolverOf(resolvedBy: string | undefined, status: string): Resolver {
+  if (status === "pending") return "pending";
+  const v = (resolvedBy ?? "").toLowerCase();
+  if (v === "system:timeout" || status === "timeout") return "timeout";
+  if (v === "supervisor:mem7") return "mem7";
+  if (v.startsWith("supervisor:") || v.startsWith("auto:") || v.startsWith("bot:")) return "sup7";
+  return "human"; // http:, cli, tty, human:, console
 }
 
 export interface ApprovalDetail extends ApprovalSummary {

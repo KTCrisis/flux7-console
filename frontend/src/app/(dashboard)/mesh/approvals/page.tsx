@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   useApprovals,
   useApprovalDetail,
   useResolveApproval,
+  useTraces,
 } from "@/lib/hooks/use-mesh";
-import { timeAgo } from "@/lib/utils";
+import { resolverOf, type Resolver } from "@/lib/api/mesh";
+import { cn, timeAgo } from "@/lib/utils";
 import { PolicyMini } from "@/components/ui/policy-badge";
 import { DecisionBadge } from "@/components/ui/decision-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,7 +32,34 @@ export default function ApprovalsPage() {
   const resolve = useResolveApproval();
 
   const pending = approvals.filter((a) => a.status === "pending");
-  const resolved = approvals.filter((a) => a.status !== "pending");
+  const [who, setWho] = useState<Resolver | "all">("all");
+  // mem7 precedents approve without opening an approval: they only show in traces
+  const { data: traces } = useTraces({ limit: 500 });
+
+  const history = useMemo(() => {
+    const rows: HistoryRow[] = approvals
+      .filter((a) => a.status !== "pending")
+      .map((a) => ({
+        id: a.id, agent: a.agent_id, tool: a.tool, status: a.status,
+        at: a.resolved_at ?? a.created_at, resolver: resolverOf(a.resolved_by, a.status),
+        by: a.resolved_by ?? "", why: a.reasoning ?? "",
+        ms: a.resolved_at ? new Date(a.resolved_at).getTime() - new Date(a.created_at).getTime() : null,
+      }));
+    for (const t of traces ?? []) {
+      if (t.policy_rule !== "supervisor:mem7") continue;
+      rows.push({ id: t.trace_id, agent: t.agent_id, tool: t.tool, status: "approved", at: t.timestamp,
+        resolver: "mem7", by: "supervisor:mem7", why: "precedents in mem7", ms: null });
+    }
+    return rows.sort((a, b) => b.at.localeCompare(a.at));
+  }, [approvals, traces]);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { sup7: 0, human: 0, mem7: 0, timeout: 0 };
+    for (const r of history) c[r.resolver] = (c[r.resolver] ?? 0) + 1;
+    return c;
+  }, [history]);
+  const resolved = history.filter((r) => who === "all" || r.resolver === who);
+  const total = history.length || 1;
 
   function handleResolve(id: string, decision: "approve" | "deny") {
     resolve.mutate(
@@ -188,45 +217,70 @@ export default function ApprovalsPage() {
         </div>
       )}
 
-      {/* History */}
-      {resolved.length > 0 && (
-        <div>
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-            History
-          </span>
-          <div className="mt-2 rounded-lg border border-border bg-card overflow-x-auto">
+      {/* History: who settled what */}
+      {history.length > 0 && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {RESOLVERS.map((r) => (
+              <button
+                key={r.key}
+                onClick={() => setWho(who === r.key ? "all" : r.key)}
+                className={cn(
+                  "rounded-lg border bg-card p-3 text-left transition-colors",
+                  who === r.key ? "border-primary/40" : "border-border hover:border-border/80"
+                )}
+              >
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{r.label}</span>
+                <div className={cn("text-xl font-semibold tabular-nums mt-0.5", r.tone)}>
+                  {counts[r.key] ?? 0}
+                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                    {Math.round(((counts[r.key] ?? 0) / total) * 100)} %
+                  </span>
+                </div>
+                <div className="text-[11px] text-muted-foreground">{r.hint}</div>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">History</span>
+            {who !== "all" && (
+              <button onClick={() => setWho("all")} className="text-[11px] text-primary">
+                {RESOLVERS.find((r) => r.key === who)?.label} only · show all
+              </button>
+            )}
+          </div>
+          <div className="rounded-lg border border-border bg-card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Agent
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Tool
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Decision
-                  </th>
-                  <th className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Time
-                  </th>
+                  {["Agent", "Tool", "Decision", "Decided by", "Why", "Time"].map((h) => (
+                    <th key={h} className="px-4 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {resolved.map((a) => (
-                  <tr key={a.id} className="border-b border-border/30">
-                    <td className="px-4 py-2.5 text-sm">{a.agent_id}</td>
-                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
-                      {a.tool}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <DecisionBadge status={a.status} />
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {timeAgo(a.created_at)}
-                    </td>
-                  </tr>
-                ))}
+                {resolved.slice(0, 200).map((a) => {
+                  const r = RESOLVERS.find((x) => x.key === a.resolver);
+                  return (
+                    <tr key={a.id} className="border-b border-border/30 align-top">
+                      <td className="px-4 py-2.5 text-sm">{a.agent}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{a.tool}</td>
+                      <td className="px-4 py-2.5"><DecisionBadge status={a.status} /></td>
+                      <td className="px-4 py-2.5">
+                        <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-mono", r?.chip)}>{r?.label}</span>
+                        <span className="block mt-0.5 font-mono text-[10px] text-muted-foreground">
+                          {a.by}{a.ms != null ? ` · ${a.ms < 1000 ? `${a.ms} ms` : `${Math.round(a.ms / 1000)} s`}` : ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-md">
+                        <span className="line-clamp-2" title={a.why}>{a.why}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">{timeAgo(a.at)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -235,3 +289,26 @@ export default function ApprovalsPage() {
     </div>
   );
 }
+
+interface HistoryRow {
+  id: string;
+  agent: string;
+  tool: string;
+  status: string;
+  at: string;
+  resolver: Resolver;
+  by: string;
+  why: string;
+  ms: number | null;
+}
+
+const RESOLVERS: Array<{ key: Exclude<Resolver, "pending">; label: string; hint: string; tone: string; chip: string }> = [
+  { key: "sup7", label: "sup7", hint: "rules or Jev, automatic", tone: "text-sky-400",
+    chip: "border-sky-500/30 bg-sky-500/10 text-sky-400" },
+  { key: "human", label: "human", hint: "console, CLI or HTTP", tone: "text-amber-400",
+    chip: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
+  { key: "mem7", label: "mem7 precedents", hint: "past approvals, reads only", tone: "text-violet-400",
+    chip: "border-violet-500/30 bg-violet-500/10 text-violet-400" },
+  { key: "timeout", label: "expired", hint: "nobody decided in time", tone: "text-muted-foreground",
+    chip: "border-border bg-secondary/30 text-muted-foreground" },
+];
