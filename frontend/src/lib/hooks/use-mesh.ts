@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ToolAction } from "@/lib/api/mesh";
 import {
+  fetchPrecedents,
+  forgetPrecedents,
   fetchTraces,
   fetchApprovals,
   fetchApprovalDetail,
@@ -242,5 +244,17 @@ export function useResolveApproval() {
       qc.invalidateQueries({ queryKey: ["mesh", "approvals"] });
       qc.invalidateQueries({ queryKey: ["mesh", "traces"] });
     },
+  });
+}
+
+export function usePrecedents() {
+  return useQuery({ queryKey: ["mesh", "precedents"], queryFn: fetchPrecedents, refetchInterval: 10000, retry: false });
+}
+
+export function useForgetPrecedents() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tool, agent }: { tool: string; agent: string }) => forgetPrecedents(tool, agent),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mesh", "precedents"] }),
   });
 }
