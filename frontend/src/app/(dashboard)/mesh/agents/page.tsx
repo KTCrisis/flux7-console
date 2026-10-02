@@ -28,8 +28,11 @@ export default function AgentsPage() {
   const { data: halts } = useHalts();
   const stopAgent = useCreateHalt();
   const resume = useResumeHalt();
-  // the agent's own stop (a global stop is shown by the banner)
-  const agentHalt = (id: string) => (halts ?? []).find((h) => h.scope === "agent" && h.target === id);
+  // the agent's own stop, exact or by glob (Resume lifts it from this row)
+  const agentHalt = (id: string) =>
+    (halts ?? []).find((h) => h.scope === "agent" && h.target !== undefined && globMatch(h.target, id));
+  // what stops the agent now: its own stop, or a stop of every agent
+  const stoppedBy = (id: string) => agentHalt(id) ?? (halts ?? []).find((h) => h.scope === "all");
 
   const agents = useMemo(() => {
     if (!traces) return [];
@@ -129,6 +132,18 @@ export default function AgentsPage() {
                   <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{a.tools.length}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
+                      {(() => {
+                        const h = stoppedBy(a.id);
+                        return h ? (
+                          <span
+                            title={`${h.scope === "all" ? "Every agent is stopped" : "Stopped"}${h.reason ? `: ${h.reason}` : ""}`}
+                            className="inline-flex items-center gap-1 rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-red-300"
+                          >
+                            <OctagonX className="h-2.5 w-2.5" />
+                            {h.scope === "all" ? "stopped (all)" : "stopped"}
+                          </span>
+                        ) : null;
+                      })()}
                       {a.pendingApprovals > 0 && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-mono text-amber-400">
                           <Shield className="h-2.5 w-2.5" />
@@ -146,7 +161,7 @@ export default function AgentsPage() {
                           {a.denied} denied
                         </span>
                       )}
-                      {a.pendingApprovals === 0 && a.grantCount === 0 && a.denied === 0 && (
+                      {!stoppedBy(a.id) && a.pendingApprovals === 0 && a.grantCount === 0 && a.denied === 0 && (
                         <span className="text-[10px] text-muted-foreground">—</span>
                       )}
                     </div>
@@ -189,4 +204,17 @@ export default function AgentsPage() {
       )}
     </div>
   );
+}
+
+// mesh7 accepts a glob as the target of an agent stop ("scout*") and reads it
+// with Go's filepath.Match: "*" is any run of characters except "/", "?" one
+// character except "/", the rest literal. The same reading here.
+function globMatch(pattern: string, value: string): boolean {
+  let re = "^";
+  for (const ch of pattern) {
+    if (ch === "*") re += "[^/]*";
+    else if (ch === "?") re += "[^/]";
+    else re += ch.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(re + "$").test(value);
 }
