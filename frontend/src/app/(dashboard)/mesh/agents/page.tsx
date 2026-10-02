@@ -2,10 +2,10 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useTraces, useGrants, useApprovals } from "@/lib/hooks/use-mesh";
+import { useTraces, useGrants, useApprovals, useHalts, useCreateHalt, useResumeHalt } from "@/lib/hooks/use-mesh";
 import { timeAgo } from "@/lib/utils";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import { Cpu, ArrowRight, Shield, Key, Activity } from "lucide-react";
+import { Cpu, ArrowRight, Shield, Key, Activity, OctagonX, Play } from "lucide-react";
 
 interface AgentRow {
   id: string;
@@ -25,6 +25,11 @@ export default function AgentsPage() {
   const { data: traces, isLoading: loadingTraces } = useTraces({ limit: 1000 });
   const { data: grants } = useGrants();
   const { data: approvals } = useApprovals();
+  const { data: halts } = useHalts();
+  const stopAgent = useCreateHalt();
+  const resume = useResumeHalt();
+  // the agent's own stop (a global stop is shown by the banner)
+  const agentHalt = (id: string) => (halts ?? []).find((h) => h.scope === "agent" && h.target === id);
 
   const agents = useMemo(() => {
     if (!traces) return [];
@@ -33,6 +38,7 @@ export default function AgentsPage() {
 
     for (const t of traces) {
       if (!t.agent_id) continue;
+      if (t.policy_rule === "control-plane") continue; // operator actions, not an agent
       let row = map.get(t.agent_id);
       if (!row) {
         row = {
@@ -147,9 +153,33 @@ export default function AgentsPage() {
                   </td>
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">{timeAgo(a.lastSeen)}</td>
                   <td className="px-4 py-2.5">
-                    <Link href={`/mesh/agents/${encodeURIComponent(a.id)}`} className="text-muted-foreground hover:text-foreground transition-colors">
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
+                    <div className="flex items-center justify-end gap-3">
+                      {(() => {
+                        const h = agentHalt(a.id);
+                        return h ? (
+                          <button
+                            onClick={() => resume.mutate(h.id)}
+                            disabled={resume.isPending}
+                            title="Lift this agent's emergency stop"
+                            className="inline-flex items-center gap-1 rounded border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+                          >
+                            <Play className="h-2.5 w-2.5" /> Resume
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => stopAgent.mutate({ scope: "agent", target: a.id })}
+                            disabled={stopAgent.isPending}
+                            title="Emergency stop: block every tool call of this agent"
+                            className="inline-flex items-center gap-1 rounded border border-red-500/30 px-2 py-0.5 text-[10px] text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                          >
+                            <OctagonX className="h-2.5 w-2.5" /> Stop
+                          </button>
+                        );
+                      })()}
+                      <Link href={`/mesh/agents/${encodeURIComponent(a.id)}`} className="text-muted-foreground hover:text-foreground transition-colors">
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

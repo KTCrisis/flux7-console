@@ -603,3 +603,65 @@ export async function revokeGrant(id: string): Promise<void> {
   const res = await fetch(`${MESH_BASE}/grants/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`Failed to revoke grant: ${res.status}`);
 }
+
+// ───────────────────────────────────────────────────────────
+// Emergency stop (halts)
+// ───────────────────────────────────────────────────────────
+
+export type HaltScope = "all" | "agent" | "session";
+
+export interface Halt {
+  id: string;
+  scope: HaltScope;
+  target?: string;
+  reason?: string;
+  created_by?: string;
+  created_at: string;
+  revoked_grants?: Grant[];
+}
+
+export interface HaltCreated {
+  halt: Halt;
+  already_active?: boolean;
+  revoked_grants?: number;
+  denied_approvals?: number;
+}
+
+export async function fetchHalts(): Promise<Halt[]> {
+  const res = await fetch(`${MESH_BASE}/halts`);
+  if (!res.ok) throw new Error(`Failed to fetch halts: ${res.status}`);
+  return res.json();
+}
+
+export async function createHalt(opts: {
+  scope: HaltScope;
+  target?: string;
+  reason?: string;
+}): Promise<HaltCreated> {
+  const res = await fetch(`${MESH_BASE}/halts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...opts, by: "console" }),
+  });
+  if (!res.ok) {
+    const detail = await res.json().then((d) => d?.error).catch(() => "");
+    throw new Error(detail || `Failed to halt: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function resumeHalt(id: string): Promise<{ restored_grants: number }> {
+  const res = await fetch(`${MESH_BASE}/halts/${id}/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ by: "console" }),
+  });
+  if (!res.ok) throw new Error(`Failed to resume: ${res.status}`);
+  return res.json();
+}
+
+export function describeHalt(h: Pick<Halt, "scope" | "target">): string {
+  if (h.scope === "all") return "all agents";
+  if (h.scope === "agent") return `agent ${h.target}`;
+  return `session ${h.target}`;
+}

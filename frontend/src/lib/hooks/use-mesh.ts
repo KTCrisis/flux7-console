@@ -27,7 +27,11 @@ import {
   fetchGrants,
   createGrant,
   revokeGrant,
+  fetchHalts,
+  createHalt,
+  resumeHalt,
 } from "@/lib/api/mesh";
+import type { HaltScope } from "@/lib/api/mesh";
 
 export function useHealth() {
   return useQuery({
@@ -272,6 +276,40 @@ export function useSaveApprovalSettings() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mesh", "approval-settings"] });
       qc.invalidateQueries({ queryKey: ["mesh", "precedents"] });
+    },
+  });
+}
+
+// Emergency stop. Polled often: a stop must show on every page within seconds,
+// and so must its lifting.
+export function useHalts() {
+  return useQuery({
+    queryKey: ["mesh", "halts"],
+    queryFn: fetchHalts,
+    refetchInterval: 3000,
+  });
+}
+
+export function useCreateHalt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (opts: { scope: HaltScope; target?: string; reason?: string }) => createHalt(opts),
+    onSuccess: () => {
+      // a stop revokes grants and denies approvals: refresh those views too
+      qc.invalidateQueries({ queryKey: ["mesh", "halts"] });
+      qc.invalidateQueries({ queryKey: ["mesh", "grants"] });
+      qc.invalidateQueries({ queryKey: ["mesh", "approvals"] });
+    },
+  });
+}
+
+export function useResumeHalt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => resumeHalt(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mesh", "halts"] });
+      qc.invalidateQueries({ queryKey: ["mesh", "grants"] });
     },
   });
 }

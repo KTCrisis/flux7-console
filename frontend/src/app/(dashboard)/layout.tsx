@@ -20,15 +20,17 @@ import {
   Cpu,
   FileText,
   Menu,
+  OctagonX,
 } from "lucide-react";
-import { useHealth, useApprovals } from "@/lib/hooks/use-mesh";
+import { HaltBanner } from "@/components/mesh/halt-banner";
+import { useHealth, useApprovals, useHalts } from "@/lib/hooks/use-mesh";
 
 type NavItem = {
   href: string;
   label: string;
   also?: string[]; // other paths that light this entry
   icon: typeof LayoutDashboard;
-  badge?: "approvals";
+  badge?: "approvals" | "halts";
 };
 
 type NavGroup = {
@@ -46,6 +48,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/mesh", label: "Overview", icon: LayoutDashboard },
       { href: "/mesh/approvals", label: "Approvals", icon: Shield, badge: "approvals" },
+      { href: "/mesh/halts", label: "Emergency stop", icon: OctagonX, badge: "halts" },
     ],
   },
   {
@@ -114,6 +117,8 @@ export default function DashboardLayout({
   const { data: health, dataUpdatedAt } = useHealth();
   const { data: rawApprovals } = useApprovals();
   const pendingCount = (rawApprovals ?? []).filter((a) => a.status === "pending").length;
+  const { data: halts } = useHalts();
+  const haltCount = halts?.length ?? 0;
   const { label: freshnessLabel, fresh } = useFreshnessLabel(dataUpdatedAt);
 
   return (
@@ -200,7 +205,8 @@ export default function DashboardLayout({
                   const active = href === "/mesh"
                     ? pathname === href
                     : [href, ...(also ?? [])].some((p) => pathname.startsWith(p));
-                  const showBadge = badge === "approvals" && pendingCount > 0;
+                  const badgeCount = badge === "approvals" ? pendingCount : badge === "halts" ? haltCount : 0;
+                  const showBadge = badgeCount > 0;
                   return (
                     <Link
                       key={href}
@@ -222,10 +228,11 @@ export default function DashboardLayout({
                       )}
                       {showBadge && (
                         <span className={cn(
-                          "inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-500 text-[10px] font-mono font-semibold text-black leading-none",
+                          "inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-mono font-semibold leading-none",
+                          badge === "halts" ? "bg-red-500 text-white" : "bg-amber-500 text-black",
                           collapsed ? "absolute -top-0.5 -right-0.5 h-3.5 min-w-3.5 text-[8px]" : "ml-auto"
                         )}>
-                          {pendingCount}
+                          {badgeCount}
                         </span>
                       )}
                     </Link>
@@ -314,7 +321,10 @@ export default function DashboardLayout({
       )}>
         {/* pt-14 sous lg : sans lui, le titre de la page passerait derrière le
             bouton d'ouverture, qui est en position fixe */}
-        <div className="px-6 py-6 max-lg:px-4 max-lg:pt-14 max-w-7xl mx-auto w-full">{children}</div>
+        <div className="px-6 py-6 max-lg:px-4 max-lg:pt-14 max-w-7xl mx-auto w-full">
+          <HaltBanner />
+          {children}
+        </div>
       </main>
     </div>
   );
