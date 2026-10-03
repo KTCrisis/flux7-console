@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { TraceTabs } from "@/components/mesh/trace-tabs";
 import { useTraces } from "@/lib/hooks/use-mesh";
 import { formatDuration, timeAgo } from "@/lib/utils";
@@ -21,8 +21,16 @@ export default function TracesPage() {
   const [filterSession, setFilterSession] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRangeMs>(0);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // ?trace=<id>: arriving from a memory in mem7, show the call that wrote it.
+  // Read after mount rather than with useSearchParams, which would need a
+  // Suspense boundary for the static build.
+  const [filterTrace, setFilterTrace] = useState("");
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("trace");
+    if (t) setFilterTrace(t);
+  }, []);
 
-  const { data: rawTraces, isLoading } = useTraces({ limit: 200 });
+  const { data: rawTraces, isLoading } = useTraces({ limit: filterTrace ? 1000 : 200 });
   const traces = rawTraces ?? [];
   const timeFiltered = filterByTimeRange(traces, (t) => t.timestamp, timeRange);
 
@@ -31,6 +39,7 @@ export default function TracesPage() {
   const uniqueSessions = [...new Set(timeFiltered.map((t) => t.session_id).filter(Boolean))];
 
   const filtered = timeFiltered.filter((t) => {
+    if (filterTrace && t.trace_id !== filterTrace) return false;
     if (filterAgent && t.agent_id !== filterAgent) return false;
     if (filterTool && !t.tool.toLowerCase().includes(filterTool.toLowerCase()))
       return false;
@@ -55,6 +64,24 @@ export default function TracesPage() {
           <IntegrityBadge />
         </div>
       </div>
+
+      {filterTrace && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-foreground">trace {filterTrace}</span>
+          <button
+            onClick={() => {
+              setFilterTrace("");
+              window.history.replaceState(null, "", window.location.pathname);
+            }}
+            className="hover:text-foreground"
+          >
+            clear
+          </button>
+          {!isLoading && filtered.length === 0 && (
+            <span>not among the last 1000 calls the mesh keeps in memory</span>
+          )}
+        </div>
+      )}
 
       <TraceTabs />
 

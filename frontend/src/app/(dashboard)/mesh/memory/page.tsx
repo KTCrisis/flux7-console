@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Brain, Search, Tag, User, Clock, Plus, Trash2, Save, X } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Brain, Search, Tag, User, Clock, Plus, Trash2, Save, X, ShieldCheck, ShieldAlert, History, Activity } from "lucide-react";
 import { useDebouncedValue } from "@/lib/hooks/use-debounce";
 import { cn, timeAgo } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +14,10 @@ import {
   useMemorySearch,
   useStoreMemory,
   useForgetMemory,
+  useMemoryHistory,
+  useChainStatus,
 } from "@/lib/hooks/use-mem7";
+import type { ChainStatus } from "@/lib/api/mem7";
 
 export default function MemoryPage() {
   const { data: health, error: healthError } = useMem7Health();
@@ -41,6 +45,8 @@ export default function MemoryPage() {
   });
 
   const { data: detail } = useMemoryDetail(selectedKey);
+  const { data: history } = useMemoryHistory(selectedKey);
+  const { data: chain, error: chainError } = useChainStatus();
   const store = useStoreMemory();
   const forget = useForgetMemory();
 
@@ -78,6 +84,7 @@ export default function MemoryPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <ChainBadge chain={chain} unavailable={!!chainError} />
           <button
             onClick={() => { setShowForm(!showForm); setEditing(false); }}
             className="flex items-center gap-1.5 rounded-md bg-violet-500/15 text-violet-400 px-3 py-1.5 text-xs font-medium hover:bg-violet-500/25 transition-colors"
@@ -273,6 +280,16 @@ export default function MemoryPage() {
                         {timeAgo(detail.updated)}
                       </span>
                     )}
+                    {detail.traceId && (
+                      <Link
+                        href={`/mesh/traces?trace=${detail.traceId}`}
+                        title={`Trace of the governed call that wrote it: ${detail.traceId}`}
+                        className="flex items-center gap-1 font-mono hover:text-foreground"
+                      >
+                        <Activity className="h-3 w-3" />
+                        {detail.traceId.slice(0, 8)}
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -294,6 +311,35 @@ export default function MemoryPage() {
                   {detail.value}
                 </pre>
               </div>
+              {history && history.length > 0 && (
+                <div className="space-y-1.5">
+                  <h3 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <History className="h-3 w-3" />
+                    History
+                  </h3>
+                  <ol className="space-y-1">
+                    {history.map((ev, i) => (
+                      <li key={i} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        <span className="font-mono">{new Date(ev.when).toLocaleString()}</span>
+                        <span className="text-foreground">{ev.what}</span>
+                        {ev.agent && <span>by {ev.agent}</span>}
+                        {ev.trace && (
+                          <Link href={`/mesh/traces?trace=${ev.trace}`} className="font-mono hover:text-foreground">
+                            trace {ev.trace.slice(0, 8)}
+                          </Link>
+                        )}
+                        {ev.seal ? (
+                          <span className="font-mono" title="Seal of this entry in the workspace's hash chain">
+                            seal {ev.seal.slice(0, 8)}
+                          </span>
+                        ) : (
+                          <span title="Written before the hash chain existed">unsealed</span>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-center h-full min-h-[300px] text-muted-foreground text-sm">
@@ -399,5 +445,32 @@ function MemoryForm({
         </button>
       </div>
     </div>
+  );
+}
+
+/** The workspace's hash chain at a glance; the tooltip says what was read. */
+function ChainBadge({ chain, unavailable }: { chain?: ChainStatus; unavailable: boolean }) {
+  if (unavailable) {
+    return <span className="text-xs text-muted-foreground" title="mem7 before 0.7 has no chain report">chain: n/a</span>;
+  }
+  if (!chain) return null;
+  const r = chain.report;
+  const detail = `${r.sealed} sealed, ${r.legacy} written before the chain, ${r.keyed ? "HMAC with MEM7_CHAIN_KEY" : "SHA-256, no key"}`;
+  if (chain.holds) {
+    return (
+      <span className="flex items-center gap-1 text-xs text-emerald-400" title={detail}>
+        <ShieldCheck className="h-3.5 w-3.5" />
+        Chain holds
+      </span>
+    );
+  }
+  return (
+    <span
+      className="flex items-center gap-1 text-xs text-red-400"
+      title={`${r.break?.reason} at ${r.break?.file}:${r.break?.line} (${r.break?.entity}). ${detail}`}
+    >
+      <ShieldAlert className="h-3.5 w-3.5" />
+      Chain broken at {r.break?.entity}
+    </span>
   );
 }

@@ -65,6 +65,30 @@ export interface MemoryEntry {
 
 export interface MemoryDetail extends MemoryEntry {
   value: string;
+  /** trace id of the governed call that wrote it (mem7 ≥ 0.6) */
+  traceId?: string;
+}
+
+/** One step in a key's life, from memory_history (mem7 ≥ 0.7). */
+export interface MemoryEvent {
+  when: string;
+  what: string;
+  agent?: string;
+  trace?: string;
+  /** first characters of the entry's seal; absent before the chain */
+  seal?: string;
+}
+
+/** The workspace's hash chain, as `mem7 verify` reports it. */
+export interface ChainStatus {
+  holds: boolean;
+  report: {
+    entries: number;
+    sealed: number;
+    legacy: number;
+    keyed: boolean;
+    break: { file: string; line: number; entity: string; reason: string } | null;
+  };
 }
 
 export interface MemorySearchResult extends MemoryDetail {}
@@ -129,6 +153,7 @@ function parseRecall(text: string): MemoryDetail[] {
     const key = lines[0]?.trim() ?? "";
     let agent = "";
     let updated = "";
+    let traceId: string | undefined;
     const tags: string[] = [];
     const valueLines: string[] = [];
 
@@ -140,6 +165,8 @@ function parseRecall(text: string): MemoryDetail[] {
         agent = l.slice(7).trim();
       } else if (l.startsWith("Updated: ")) {
         updated = l.slice(9).trim();
+      } else if (l.startsWith("Trace: ")) {
+        traceId = l.slice(7).trim();
       } else {
         valueLines.push(l);
       }
@@ -150,7 +177,7 @@ function parseRecall(text: string): MemoryDetail[] {
       valueLines.pop();
     }
 
-    return { key, value: valueLines.join("\n"), tags, agent, updated };
+    return { key, value: valueLines.join("\n"), tags, agent, updated, traceId };
   });
 }
 
@@ -225,4 +252,46 @@ export async function forgetMemory(opts: {
   if (opts.key) args.key = opts.key;
   if (opts.tags?.length) args.tags = opts.tags;
   return toolCall("memory_forget", args);
+}
+
+/**
+ * Parse memory_history. Lines look like
+ * "- 2026-10-03T08:47:01Z update by scout7 · trace 1a2b… · seal ab47df04d620"
+ * or "… · unsealed (written before the chain)".
+ */
+export function parseHistory(text: string): MemoryEvent[] {
+  return text
+    .split("\n")
+    .filter((l) => l.startsWith("- "))
+    .map((l) => {
+      const parts = l.slice(2).split(" · ");
+      const head = parts[0];
+      const space = head.indexOf(" ");
+      const when = head.slice(0, space);
+      let what = head.slice(space + 1);
+      let agent: string | undefined;
+      const by = / by (\S+)$/.exec(what);
+      if (by) {
+        agent = by[1];
+        what = what.slice(0, by.index);
+      }
+      const ev: MemoryEvent = { when, what, agent };
+      for (const p of parts.slice(1)) {
+        if (p.startsWith("trace ")) ev.trace = p.slice(6);
+        else if (p.startsWith("seal ")) ev.seal = p.slice(5);
+      }
+      return ev;
+    });
+}
+
+export async function fetchMemoryHistory(key: string): Promise<MemoryEvent[]> {
+  const text = await toolCall("memory_history", { key });
+  if (text.startsWith("No history")) return [];
+  return parseHistory(text);
+}
+
+export async function fetchChainStatus(): Promise<ChainStatus> {
+  const res = await fetch(`${MEM7_BASE}/memory/chain`);
+  if (!res.ok) throw new Error(`mem7 chain report failed: ${res.status}`);
+  return res.json();
 }
