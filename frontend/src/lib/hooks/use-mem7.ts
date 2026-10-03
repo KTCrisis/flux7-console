@@ -7,6 +7,8 @@ import {
   searchMemories,
   storeMemory,
   forgetMemory,
+  fetchMemoryHistory,
+  fetchChainStatus,
 } from "@/lib/api/mem7";
 
 export function useMem7Health() {
@@ -59,6 +61,8 @@ export function useStoreMemory() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mem7", "memories"] });
       qc.invalidateQueries({ queryKey: ["mem7", "memory"] });
+      qc.invalidateQueries({ queryKey: ["mem7", "history"] });
+      qc.invalidateQueries({ queryKey: ["mem7", "chain"] });
     },
   });
 }
@@ -71,6 +75,26 @@ export function useForgetMemory() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mem7", "memories"] });
       qc.invalidateQueries({ queryKey: ["mem7", "memory"] });
+      qc.invalidateQueries({ queryKey: ["mem7", "history"] });
+      qc.invalidateQueries({ queryKey: ["mem7", "chain"] });
     },
+  });
+}
+
+export function useMemoryHistory(key: string | null) {
+  return useQuery({
+    queryKey: ["mem7", "history", key],
+    queryFn: () => fetchMemoryHistory(key!),
+    enabled: !!key,
+  });
+}
+
+/** The workspace's hash chain; re-checked every minute (it reads every entry). */
+export function useChainStatus() {
+  return useQuery({
+    queryKey: ["mem7", "chain"],
+    queryFn: fetchChainStatus,
+    refetchInterval: 60000,
+    retry: 1,
   });
 }
