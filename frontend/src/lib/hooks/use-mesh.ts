@@ -45,6 +45,7 @@ export function useTraces(opts?: {
   agent?: string;
   tool?: string;
   limit?: number;
+  trace?: string;
 }) {
   return useQuery({
     queryKey: ["mesh", "traces", opts],

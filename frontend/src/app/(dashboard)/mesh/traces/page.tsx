@@ -30,7 +30,7 @@ export default function TracesPage() {
     if (t) setFilterTrace(t);
   }, []);
 
-  const { data: rawTraces, isLoading } = useTraces({ limit: filterTrace ? 1000 : 200 });
+  const { data: rawTraces, isLoading } = useTraces(filterTrace ? { trace: filterTrace } : { limit: 200 });
   const traces = rawTraces ?? [];
   const timeFiltered = filterByTimeRange(traces, (t) => t.timestamp, timeRange);
 
@@ -78,7 +78,7 @@ export default function TracesPage() {
             clear
           </button>
           {!isLoading && filtered.length === 0 && (
-            <span>not among the last 1000 calls the mesh keeps in memory</span>
+            <span>not found: the mesh keeps its last 10,000 calls in memory</span>
           )}
         </div>
       )}

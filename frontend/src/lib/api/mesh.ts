@@ -170,8 +170,11 @@ export async function fetchTraces(opts?: {
   agent?: string;
   tool?: string;
   limit?: number;
+  /** every entry of one trace, searched through all the mesh keeps */
+  trace?: string;
 }): Promise<TraceEntry[]> {
   const params = new URLSearchParams();
+  if (opts?.trace) params.set("trace", opts.trace);
   if (opts?.agent) params.set("agent", opts.agent);
   if (opts?.tool) params.set("tool", opts.tool);
   if (opts?.limit) params.set("limit", String(opts.limit));
