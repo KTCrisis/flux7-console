@@ -67,6 +67,8 @@ export interface MemoryDetail extends MemoryEntry {
   value: string;
   /** trace id of the governed call that wrote it (mem7 ≥ 0.6) */
   traceId?: string;
+  /** when it holds in the world, "from → to", if not simply since written (mem7 ≥ 0.8) */
+  validity?: string;
 }
 
 /** One step in a key's life, from memory_history (mem7 ≥ 0.7). */
@@ -77,6 +79,8 @@ export interface MemoryEvent {
   trace?: string;
   /** first characters of the entry's seal; absent before the chain */
   seal?: string;
+  /** validity the entry declared, "from → to" */
+  valid?: string;
 }
 
 /** The workspace's hash chain, as `mem7 verify` reports it. */
@@ -154,6 +158,7 @@ function parseRecall(text: string): MemoryDetail[] {
     let agent = "";
     let updated = "";
     let traceId: string | undefined;
+    let validity: string | undefined;
     const tags: string[] = [];
     const valueLines: string[] = [];
 
@@ -167,6 +172,8 @@ function parseRecall(text: string): MemoryDetail[] {
         updated = l.slice(9).trim();
       } else if (l.startsWith("Trace: ")) {
         traceId = l.slice(7).trim();
+      } else if (l.startsWith("Valid: ")) {
+        validity = l.slice(7).trim();
       } else {
         valueLines.push(l);
       }
@@ -177,7 +184,7 @@ function parseRecall(text: string): MemoryDetail[] {
       valueLines.pop();
     }
 
-    return { key, value: valueLines.join("\n"), tags, agent, updated, traceId };
+    return { key, value: valueLines.join("\n"), tags, agent, updated, traceId, validity };
   });
 }
 
@@ -278,6 +285,7 @@ export function parseHistory(text: string): MemoryEvent[] {
       const ev: MemoryEvent = { when, what, agent };
       for (const p of parts.slice(1)) {
         if (p.startsWith("trace ")) ev.trace = p.slice(6);
+        else if (p.startsWith("valid ")) ev.valid = p.slice(6);
         else if (p.startsWith("seal ")) ev.seal = p.slice(5);
       }
       return ev;

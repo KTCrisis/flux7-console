@@ -306,6 +306,11 @@ export default function MemoryPage() {
                   ))}
                 </div>
               )}
+              {detail.validity && (
+                <p className="text-xs text-muted-foreground" title="When this fact holds in the world">
+                  Valid <span className="font-mono text-foreground">{detail.validity}</span>
+                </p>
+              )}
               <div className="rounded-md bg-background border border-border p-3">
                 <pre className="text-sm text-foreground whitespace-pre-wrap break-words font-mono leading-relaxed">
                   {detail.value}
@@ -323,6 +328,7 @@ export default function MemoryPage() {
                         <span className="font-mono">{new Date(ev.when).toLocaleString()}</span>
                         <span className="text-foreground">{ev.what}</span>
                         {ev.agent && <span>by {ev.agent}</span>}
+                        {ev.valid && <span className="font-mono" title="Validity declared by this write">valid {ev.valid}</span>}
                         {ev.trace && (
                           <Link href={`/mesh/traces?trace=${ev.trace}`} className="font-mono hover:text-foreground">
                             trace {ev.trace.slice(0, 8)}
