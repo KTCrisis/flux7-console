@@ -15,7 +15,7 @@ The **dashboard** (Next.js 16 + TanStack Query) is operational with 12 routes:
 |-------|---------|
 | `/mesh` | Overview — KPIs, inline pending approvals, recent activity, denials |
 | `/mesh/agents` | Agent list with stats, detail view with tool usage breakdown |
-| `/mesh/traces` | Trace browser with time range + agent/tool/policy filters |
+| `/mesh/traces` | Trace browser with time range + agent/tool/policy filters; `?trace=<id>` opens one call (linked from a memory) |
 | `/mesh/sessions` | Session list with time range filter, drill-down timeline |
 | `/mesh/otel` | OTLP spans with waterfall bars, token counts |
 | `/mesh/policies` | Policy viewer (by policy / by tool), KPIs, inline YAML editor with hot-reload |
@@ -23,7 +23,7 @@ The **dashboard** (Next.js 16 + TanStack Query) is operational with 12 routes:
 | `/mesh/supervisor` | L1 supervisor status — derived from mesh7 traces, implementation-agnostic |
 | `/mesh/grants` | Active grants with TTL, create/revoke |
 | `/mesh/tools` | Tool catalog (MCP/CLI/REST), MCP server status cards |
-| `/mesh/memory` | Memory browser — search, store, edit, delete via mem7 |
+| `/mesh/memory` | Memory browser via mem7: search, store, edit, delete; for each memory, the trace of the call that wrote it and its history (author, trace, seal); the workspace's hash chain status in the header |
 
 ### Design
 
