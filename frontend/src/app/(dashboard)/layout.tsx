@@ -21,6 +21,7 @@ import {
   FileText,
   Menu,
   OctagonX,
+  FlaskConical,
 } from "lucide-react";
 import { HaltBanner } from "@/components/mesh/halt-banner";
 import { useHealth, useApprovals, useHalts } from "@/lib/hooks/use-mesh";
@@ -70,6 +71,13 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/mesh/memory", label: "Memory", icon: Brain },
       { href: "/mesh/supervisor", label: "Supervisor", icon: Bot },
+    ],
+  },
+  {
+    label: "Verify",
+    items: [
+      // assay7 reports: each agent checked against its governance.
+      { href: "/assay", label: "Assay", icon: FlaskConical },
     ],
   },
   {
