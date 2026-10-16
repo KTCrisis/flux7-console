@@ -28,10 +28,16 @@ import { KPI } from "@/components/ui/stat";
 import { KPISkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 
+function isAssayProbe(t: { session_id?: string }) {
+  return (t.session_id ?? "").startsWith("assay-");
+}
+
 export default function MeshOverview() {
   const { data: rawTraces, error, isLoading } = useTraces({ limit: 100 });
   const { data: rawApprovals } = useApprovals();
-  const traces = rawTraces ?? [];
+  // assay7 probes (session assay-<run>) are tests of the mesh, not agent
+  // activity: they have their own page, /assay.
+  const traces = (rawTraces ?? []).filter((t) => !isAssayProbe(t));
   const approvals = rawApprovals ?? [];
   const { data: health } = useHealth();
 
@@ -154,18 +160,18 @@ export default function MeshOverview() {
                   key={agent}
                   className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-secondary/40 transition-colors"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                    <span className="text-sm font-medium">{agent}</span>
-                    <span className="text-xs text-muted-foreground font-mono">{at.length}</span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="text-sm font-medium truncate" title={agent}>{agent}</span>
+                    <span className="text-xs text-muted-foreground font-mono shrink-0">{at.length}</span>
                     {d > 0 && (
-                      <span className="text-[10px] text-red-400 bg-red-400/10 rounded px-1.5 py-0.5 font-mono">
+                      <span className="text-[10px] text-red-400 bg-red-400/10 rounded px-1.5 py-0.5 font-mono shrink-0 whitespace-nowrap">
                         {d} denied
                       </span>
                     )}
                   </div>
                   {last && (
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-[11px] text-muted-foreground shrink-0 ml-3 whitespace-nowrap">
                       {timeAgo(last.timestamp)}
                     </span>
                   )}
@@ -233,8 +239,8 @@ export default function MeshOverview() {
                   key={t.trace_id}
                   className="flex items-center justify-between px-4 py-2.5 text-xs"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{t.agent_id}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium truncate max-w-[16rem]" title={t.agent_id}>{t.agent_id}</span>
                     {t.user_id && <span className="text-[10px] text-muted-foreground">for {t.user_id}</span>}
                     <span className="text-muted-foreground">→</span>
                     <span className="font-mono text-[11px]">{t.tool}</span>

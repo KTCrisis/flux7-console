@@ -42,6 +42,7 @@ export default function AgentsPage() {
     for (const t of traces) {
       if (!t.agent_id) continue;
       if (t.policy_rule === "control-plane") continue; // operator actions, not an agent
+      if ((t.session_id ?? "").startsWith("assay-")) continue; // assay7 probes: see /assay
       let row = map.get(t.agent_id);
       if (!row) {
         row = {
@@ -121,7 +122,7 @@ export default function AgentsPage() {
               {agents.map((a) => (
                 <tr key={a.id} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
                   <td className="px-4 py-2.5">
-                    <Link href={`/mesh/agents/${encodeURIComponent(a.id)}`} className="font-mono text-xs text-primary hover:underline">
+                    <Link href={`/mesh/agents/${encodeURIComponent(a.id)}`} className="font-mono text-xs text-primary hover:underline inline-block max-w-[16rem] truncate align-bottom" title={a.id}>
                       {a.id}
                     </Link>
                   </td>
