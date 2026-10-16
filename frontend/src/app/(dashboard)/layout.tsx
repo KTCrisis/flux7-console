@@ -24,14 +24,14 @@ import {
   FlaskConical,
 } from "lucide-react";
 import { HaltBanner } from "@/components/mesh/halt-banner";
-import { useHealth, useApprovals, useHalts } from "@/lib/hooks/use-mesh";
+import { useHealth, useApprovals, useHalts, usePendingPins } from "@/lib/hooks/use-mesh";
 
 type NavItem = {
   href: string;
   label: string;
   also?: string[]; // other paths that light this entry
   icon: typeof LayoutDashboard;
-  badge?: "approvals" | "halts";
+  badge?: "approvals" | "halts" | "pins";
 };
 
 type NavGroup = {
@@ -56,7 +56,9 @@ const navGroups: NavGroup[] = [
     label: "Catalog",
     items: [
       { href: "/mesh/agents", label: "Agents", icon: Cpu },
-      { href: "/mesh/tools", label: "Tools", icon: Wrench },
+      // the badge counts tools new or changed since the catalogue was accepted:
+      // mesh7 holds them back, and nothing else tells anyone they moved
+      { href: "/mesh/tools", label: "Tools", icon: Wrench, badge: "pins" },
     ],
   },
   {
@@ -127,6 +129,8 @@ export default function DashboardLayout({
   const pendingCount = (rawApprovals ?? []).filter((a) => a.status === "pending").length;
   const { data: halts } = useHalts();
   const haltCount = halts?.length ?? 0;
+  const { data: pins } = usePendingPins();
+  const pinCount = pins?.length ?? 0; // null when the mesh runs without pin_tools
   const { label: freshnessLabel, fresh } = useFreshnessLabel(dataUpdatedAt);
 
   return (
@@ -213,7 +217,9 @@ export default function DashboardLayout({
                   const active = href === "/mesh"
                     ? pathname === href
                     : [href, ...(also ?? [])].some((p) => pathname.startsWith(p));
-                  const badgeCount = badge === "approvals" ? pendingCount : badge === "halts" ? haltCount : 0;
+                  const badgeCount = badge === "approvals" ? pendingCount
+                    : badge === "halts" ? haltCount
+                    : badge === "pins" ? pinCount : 0;
                   const showBadge = badgeCount > 0;
                   return (
                     <Link
@@ -235,11 +241,14 @@ export default function DashboardLayout({
                         <span className="truncate">{label}</span>
                       )}
                       {showBadge && (
-                        <span className={cn(
-                          "inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-mono font-semibold leading-none",
-                          badge === "halts" ? "bg-red-500 text-white" : "bg-amber-500 text-black",
-                          collapsed ? "absolute -top-0.5 -right-0.5 h-3.5 min-w-3.5 text-[8px]" : "ml-auto"
-                        )}>
+                        <span
+                          title={badge === "pins" ? `${badgeCount} tool${badgeCount > 1 ? "s" : ""} new or changed since the catalogue was accepted` : undefined}
+                          className={cn(
+                            "inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-mono font-semibold leading-none",
+                            badge === "halts" ? "bg-red-500 text-white" : "bg-amber-500 text-black",
+                            collapsed ? "absolute -top-0.5 -right-0.5 h-3.5 min-w-3.5 text-[8px]" : "ml-auto"
+                          )}
+                        >
                           {badgeCount}
                         </span>
                       )}
