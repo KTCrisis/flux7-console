@@ -24,6 +24,8 @@ import {
   fetchPendingPins,
   acceptPins,
   fetchMcpServers,
+  reloadUpstreams,
+  restartUpstream,
   fetchGrants,
   createGrant,
   revokeGrant,
@@ -203,6 +205,30 @@ export function useMcpServers() {
     queryKey: ["mesh", "mcp-servers"],
     queryFn: fetchMcpServers,
     refetchInterval: 15000,
+  });
+}
+
+// An upstream that comes, goes or reconnects changes the servers, the tools,
+// what pinning holds back and therefore every decision.
+function invalidateCatalog(qc: ReturnType<typeof useQueryClient>) {
+  for (const key of ["mcp-servers", "tools", "pins", "tool-decisions"]) {
+    qc.invalidateQueries({ queryKey: ["mesh", key] });
+  }
+}
+
+export function useReloadUpstreams() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: reloadUpstreams,
+    onSettled: () => invalidateCatalog(qc),
+  });
+}
+
+export function useRestartUpstream() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => restartUpstream(name),
+    onSettled: () => invalidateCatalog(qc),
   });
 }
 

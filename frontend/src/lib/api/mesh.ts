@@ -574,6 +574,8 @@ export interface McpServer {
   name: string;
   transport: string;
   status: string;
+  // why a server is not ready (shown while mesh7 retries it)
+  error?: string;
   tools: string[];
 }
 
@@ -581,6 +583,36 @@ export async function fetchMcpServers(): Promise<McpServer[]> {
   const res = await fetch(`${MESH_BASE}/mcp-servers`);
   if (!res.ok) throw new Error(`Failed to fetch MCP servers: ${res.status}`);
   return res.json();
+}
+
+// What a reload of mcp_servers did, by server name. mesh7 touches only the
+// servers whose declaration changed; the others keep running.
+export interface UpstreamDiff {
+  added: string[];
+  changed: string[];
+  removed: string[];
+  unchanged: string[];
+}
+
+// Reads mcp_servers again from mesh7's config file. mesh7 does it by itself
+// when the file changes; this asks for it now and reports what happened.
+export async function reloadUpstreams(): Promise<UpstreamDiff> {
+  const res = await fetch(`${MESH_BASE}/mcp-servers/reload`, {
+    method: "POST",
+    headers: { "X-Edited-By": "console" },
+  });
+  if (!res.ok) throw await meshError(res, "reload upstreams");
+  return (await res.json()).diff;
+}
+
+// Closes one upstream and connects it again as declared. Calls in flight on
+// it fail; the other upstreams are not disturbed.
+export async function restartUpstream(name: string): Promise<void> {
+  const res = await fetch(`${MESH_BASE}/mcp-servers/${encodeURIComponent(name)}/restart`, {
+    method: "POST",
+    headers: { "X-Edited-By": "console" },
+  });
+  if (!res.ok) throw await meshError(res, "restart upstream");
 }
 
 // ───────────────────────────────────────────────────────────

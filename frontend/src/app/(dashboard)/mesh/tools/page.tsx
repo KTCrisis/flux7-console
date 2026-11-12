@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTools, useMcpServers, usePolicies, useToolDecisions, useSetToolAction, usePendingPins } from "@/lib/hooks/use-mesh";
+import { useTools, useMcpServers, usePolicies, useToolDecisions, useSetToolAction, usePendingPins, useReloadUpstreams, useRestartUpstream } from "@/lib/hooks/use-mesh";
 import { PendingPins } from "@/components/mesh/pending-pins";
 import { useConsoleRole } from "@/lib/role";
 import type { ToolAction, ToolClassification, ToolDecision } from "@/lib/api/mesh";
 import { TableSkeleton, Skeleton } from "@/components/ui/skeleton";
-import { Search, Wrench, Server, Terminal, Globe, TriangleAlert, X, Pin } from "lucide-react";
+import { Search, Wrench, Server, Terminal, Globe, TriangleAlert, X, Pin, RefreshCw, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SOURCE_ICONS: Record<string, typeof Wrench> = {
@@ -57,6 +57,37 @@ export default function ToolsPage() {
   const [agentChoice, setAgentChoice] = useState("");
   const [serverFilter, setServerFilter] = useState("");
   const setAction = useSetToolAction();
+  const reloadUpstreams = useReloadUpstreams();
+  const restartUpstream = useRestartUpstream();
+  // what the last reload or restart did, or why mesh7 refused it
+  const [upstreamNote, setUpstreamNote] = useState<{ text: string; failed: boolean } | null>(null);
+
+  function handleReload() {
+    reloadUpstreams.mutate(undefined, {
+      onSuccess: (d) => {
+        const parts = [
+          d.added.length ? `added ${d.added.join(", ")}` : "",
+          d.changed.length ? `changed ${d.changed.join(", ")}` : "",
+          d.removed.length ? `removed ${d.removed.join(", ")}` : "",
+        ].filter(Boolean);
+        setUpstreamNote({
+          text: parts.length
+            ? `${parts.join(" · ")} · ${d.unchanged.length} untouched`
+            : `nothing changed · ${d.unchanged.length} untouched`,
+          failed: false,
+        });
+      },
+      onError: (err) => setUpstreamNote({ text: err instanceof Error ? err.message : String(err), failed: true }),
+    });
+  }
+
+  function handleRestart(name: string) {
+    if (!window.confirm(`Restart ${name}? Calls in flight on it fail; the other upstreams keep running.`)) return;
+    restartUpstream.mutate(name, {
+      onSuccess: () => setUpstreamNote({ text: `${name} restarted`, failed: false }),
+      onError: (err) => setUpstreamNote({ text: err instanceof Error ? err.message : String(err), failed: true }),
+    });
+  }
   const isAdmin = useConsoleRole() === "admin";
   const { data: pendingPins } = usePendingPins(); // null: pin_tools off
   const heldByServer = useMemo(() => {
@@ -113,14 +144,14 @@ export default function ToolsPage() {
   // tools are declared, not connected, so they have no live status.
   const upstreams = useMemo(() => {
     const cards = (servers ?? []).map((s) => ({
-      name: s.name, transport: s.transport, status: s.status, count: s.tools.length,
+      name: s.name, transport: s.transport, status: s.status, count: s.tools.length, error: s.error ?? "",
     }));
     const bins: Record<string, number> = {};
     for (const t of tools ?? []) {
       if (t.source === "cli") bins[upstreamOf(t)] = (bins[upstreamOf(t)] || 0) + 1;
     }
     for (const [bin, count] of Object.entries(bins).sort()) {
-      cards.push({ name: bin, transport: "cli", status: "declared", count });
+      cards.push({ name: bin, transport: "cli", status: "declared", count, error: "" });
     }
     return cards;
   }, [servers, tools]);
@@ -176,9 +207,27 @@ export default function ToolsPage() {
 
       {/* MCP Servers status */}
       <div>
-        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-          Upstreams
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+            Upstreams
+          </span>
+          {isAdmin && (
+            <button
+              onClick={handleReload}
+              disabled={reloadUpstreams.isPending}
+              title="Read mcp_servers again from mesh7's config file. Only the servers that changed are touched."
+              className="flex items-center gap-1.5 rounded border border-border px-2 py-0.5 text-[10px] font-mono text-muted-foreground hover:border-primary/50 hover:text-foreground disabled:opacity-50"
+            >
+              <RefreshCw className={cn("h-3 w-3", reloadUpstreams.isPending && "animate-spin")} />
+              reload from config
+            </button>
+          )}
+          {upstreamNote && (
+            <span className={cn("text-[10px] font-mono", upstreamNote.failed ? "text-red-400" : "text-emerald-400")}>
+              {upstreamNote.text}
+            </span>
+          )}
+        </div>
         <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {loadingServers ? (
             Array.from({ length: 4 }).map((_, i) => (
@@ -210,12 +259,29 @@ export default function ToolsPage() {
                     )}
                     <span className="text-sm font-medium truncate">{s.name}</span>
                   </div>
-                  <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground" title={s.error || undefined}>
                     <span className={cn(
                       "h-1.5 w-1.5 rounded-full",
                       s.status === "ready" ? "bg-emerald-400" : s.status === "declared" ? "bg-muted-foreground" : "bg-red-400"
                     )} />
                     {s.status}
+                    {isAdmin && s.transport !== "cli" && (
+                      // the card itself is a button (it filters the table),
+                      // so the restart control is a span with a button's role
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Restart ${s.name}`}
+                        title={`Restart ${s.name}: close it and connect it again as declared`}
+                        onClick={(e) => { e.stopPropagation(); handleRestart(s.name); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); handleRestart(s.name); }
+                        }}
+                        className="ml-0.5 rounded p-0.5 hover:bg-muted hover:text-foreground"
+                      >
+                        <RotateCw className={cn("h-3 w-3", restartUpstream.isPending && restartUpstream.variables === s.name && "animate-spin")} />
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
