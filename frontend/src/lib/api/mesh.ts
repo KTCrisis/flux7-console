@@ -585,13 +585,45 @@ export async function fetchMcpServers(): Promise<McpServer[]> {
   return res.json();
 }
 
-// What a reload of mcp_servers did, by server name. mesh7 touches only the
-// servers whose declaration changed; the others keep running.
+// What a reload of mcp_servers did, by server name. Servers no longer declared
+// are stopped. Declarations that are new or changed are held: mesh7 starts
+// nothing for them until an operator accepts them.
 export interface UpstreamDiff {
   added: string[];
   changed: string[];
   removed: string[];
   unchanged: string[];
+  held: string[];
+}
+
+// A declaration awaiting acceptance: what it would run. Values of env and
+// headers are never sent, only their names.
+export interface HeldUpstream {
+  name: string;
+  transport: string;
+  command?: string;
+  args?: string[];
+  url?: string;
+  env_keys?: string[];
+  header_keys?: string[];
+  // a server of this name runs now with another declaration
+  replaces: boolean;
+}
+
+export async function fetchHeldUpstreams(): Promise<HeldUpstream[]> {
+  const res = await fetch(`${MESH_BASE}/mcp-servers/held`, { cache: "no-store" });
+  if (!res.ok) throw await meshError(res, "read held upstreams");
+  return res.json();
+}
+
+// Starts a held declaration, replacing the server of that name if one runs.
+// It is the operator's go-ahead: mesh7 runs the command as itself.
+export async function acceptUpstream(name: string): Promise<void> {
+  const res = await fetch(`${MESH_BASE}/mcp-servers/${encodeURIComponent(name)}/accept`, {
+    method: "POST",
+    headers: { "X-Edited-By": "console" },
+  });
+  if (!res.ok) throw await meshError(res, "accept upstream");
 }
 
 // Reads mcp_servers again from mesh7's config file. mesh7 does it by itself
