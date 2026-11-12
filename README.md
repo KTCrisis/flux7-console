@@ -115,13 +115,12 @@ For a long-running instance, `deploy/flux7-console.service` runs `next start` on
 | Path | Purpose | State |
 |------|---------|-------|
 | `frontend/` | Next.js 16 dashboard (Turbopack) | Active |
-| `backend/` | FastAPI scaffolding | Skeleton |
-| `governance-engine/` | Rules / scoring / severity engine | Skeleton |
 | `schemas/` | JSON Schemas (agent, flow, template) | Drafted |
 | `examples/` | YAML declarations (agents, flows) | Drafted |
 
 > The supervisor was extracted to [flux7-supervisor](https://github.com/KTCrisis/flux7-supervisor)
-> as a standalone agent (sup7). The `backend/app/services/supervisor` directory is removed.
+> as a standalone agent (sup7). The empty Python skeleton (`backend/`, `governance-engine/`) was removed
+> on 2026-11-12: the console is the Next.js dashboard only, a client of the mesh7, sup7 and mem7 APIs.
 
 ## Related
 
