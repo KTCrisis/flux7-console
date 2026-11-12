@@ -93,7 +93,6 @@ MEM7_URL=http://localhost:9070
 MEM7_TOKEN=
 SUP7_URL=http://localhost:9096
 SUP7_ADMIN_TOKEN=
-POLICY_DIR=                  # policy files the Policies page reads and writes
 ```
 
 They are read by the route handlers on the server only (no `NEXT_PUBLIC_` prefix).

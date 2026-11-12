@@ -43,8 +43,8 @@ ExecStart=/home/fluxart/flux7-console/frontend/node_modules/.bin/next start -H 1
 Restart=on-failure
 RestartSec=3
 
-# Durcissement léger : console écrit peu, mais lit POLICY_DIR sous le home pour
-# l'éditeur de politiques.
+# Durcissement léger : console n'écrit aucun fichier de mesh7, l'éditeur de
+# politiques passe par l'API (/policies/files) ; elle lit les rapports assay7.
 NoNewPrivileges=true
 PrivateTmp=true
 
