@@ -30,7 +30,10 @@ export default function PoliciesPage() {
   const [draft, setDraft] = useState("");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 
-  const { data: yamlContent } = usePolicyYaml(editing);
+  const [saveError, setSaveError] = useState("");
+
+  const { data: policyFile } = usePolicyYaml(editing);
+  const yamlContent = policyFile?.text;
   const save = useSavePolicyYaml();
 
   useEffect(() => {
@@ -38,7 +41,8 @@ export default function PoliciesPage() {
   }, [yamlContent]);
 
   useEffect(() => {
-    if (saveStatus !== "idle") {
+    // an error stays until the next save: it says why mesh7 refused the file
+    if (saveStatus === "saved") {
       const t = setTimeout(() => setSaveStatus("idle"), 2000);
       return () => clearTimeout(t);
     }
@@ -57,21 +61,29 @@ export default function PoliciesPage() {
     setEditing(name);
     setDraft("");
     setSaveStatus("idle");
+    setSaveError("");
   }
 
   function closeEditor() {
     setEditing(null);
     setDraft("");
     setSaveStatus("idle");
+    setSaveError("");
   }
 
   function handleSave() {
-    if (!editing || !draft.trim()) return;
+    if (!editing || !draft.trim() || !policyFile) return;
     save.mutate(
-      { name: editing, content: draft },
+      { name: editing, content: draft, sha: policyFile.sha },
       {
-        onSuccess: () => setSaveStatus("saved"),
-        onError: () => setSaveStatus("error"),
+        onSuccess: () => {
+          setSaveError("");
+          setSaveStatus("saved");
+        },
+        onError: (err) => {
+          setSaveError(err instanceof Error ? err.message : String(err));
+          setSaveStatus("error");
+        },
       }
     );
   }
@@ -211,8 +223,8 @@ export default function PoliciesPage() {
                 </span>
               )}
               {saveStatus === "error" && (
-                <span className="text-[10px] font-mono text-red-400">
-                  save failed
+                <span className="text-[10px] font-mono text-red-400" title={saveError}>
+                  refused: {saveError || "save failed"}
                 </span>
               )}
             </div>

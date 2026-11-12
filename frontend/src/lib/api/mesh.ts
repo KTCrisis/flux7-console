@@ -396,28 +396,42 @@ export async function fetchPolicies(): Promise<Policy[]> {
   return res.json();
 }
 
-export async function fetchPolicyFiles(): Promise<string[]> {
-  const res = await fetch("/api/policy-files");
-  if (!res.ok) throw new Error(`Failed to list policy files: ${res.status}`);
-  return res.json();
+// Policy files are read and written through mesh7 (`/policies/files`), the
+// same door as every other control-plane edit: mesh7 validates the whole
+// policy set, keeps the previous version, applies the set and records the edit
+// in the trace. The console never touches the files itself.
+
+export interface PolicyFile {
+  text: string;
+  // fingerprint of the text as read (ETag); sent back in If-Match on save
+  sha: string;
 }
 
-export async function fetchPolicyYaml(name: string): Promise<string> {
-  const res = await fetch(`/api/policy-files/${encodeURIComponent(name)}`);
-  if (!res.ok) throw new Error(`Failed to read policy: ${res.status}`);
-  return res.text();
+async function meshError(res: Response, what: string): Promise<Error> {
+  const body = await res.json().catch(() => ({}));
+  return new Error(body.error ?? `${what}: HTTP ${res.status}`);
+}
+
+export async function fetchPolicyYaml(name: string): Promise<PolicyFile> {
+  const res = await fetch(`${MESH_BASE}/policies/files/${encodeURIComponent(name)}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw await meshError(res, "read policy");
+  return { text: await res.text(), sha: res.headers.get("etag") ?? "" };
 }
 
 export async function savePolicyYaml(
   name: string,
-  content: string
-): Promise<void> {
-  const res = await fetch(`/api/policy-files/${encodeURIComponent(name)}`, {
+  content: string,
+  sha: string
+): Promise<{ file: string; sha: string; changed: boolean; backup?: string }> {
+  const res = await fetch(`${MESH_BASE}/policies/files/${encodeURIComponent(name)}`, {
     method: "PUT",
-    headers: { "Content-Type": "text/yaml" },
+    headers: { "Content-Type": "text/yaml", "If-Match": sha },
     body: content,
   });
-  if (!res.ok) throw new Error(`Failed to save policy: ${res.status}`);
+  if (!res.ok) throw await meshError(res, "save policy");
+  return res.json();
 }
 
 // ───────────────────────────────────────────────────────────

@@ -141,8 +141,8 @@ export function usePolicyYaml(name: string | null) {
 export function useSavePolicyYaml() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ name, content }: { name: string; content: string }) =>
-      savePolicyYaml(name, content),
+    mutationFn: ({ name, content, sha }: { name: string; content: string; sha: string }) =>
+      savePolicyYaml(name, content, sha),
     onSuccess: (_data, { name }) => {
       qc.invalidateQueries({ queryKey: ["mesh", "policy-yaml", name] });
       qc.invalidateQueries({ queryKey: ["mesh", "policies"] });
