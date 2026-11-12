@@ -26,6 +26,8 @@ import {
   fetchMcpServers,
   reloadUpstreams,
   restartUpstream,
+  fetchHeldUpstreams,
+  acceptUpstream,
   fetchGrants,
   createGrant,
   revokeGrant,
@@ -211,7 +213,7 @@ export function useMcpServers() {
 // An upstream that comes, goes or reconnects changes the servers, the tools,
 // what pinning holds back and therefore every decision.
 function invalidateCatalog(qc: ReturnType<typeof useQueryClient>) {
-  for (const key of ["mcp-servers", "tools", "pins", "tool-decisions"]) {
+  for (const key of ["mcp-servers", "held-upstreams", "tools", "pins", "tool-decisions"]) {
     qc.invalidateQueries({ queryKey: ["mesh", key] });
   }
 }
@@ -220,6 +222,25 @@ export function useReloadUpstreams() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: reloadUpstreams,
+    onSettled: () => invalidateCatalog(qc),
+  });
+}
+
+// Declarations held by mesh7. Polled: they appear when someone, or something,
+// edits the config file, which nobody announces. Admin route, hence `enabled`.
+export function useHeldUpstreams(enabled: boolean) {
+  return useQuery({
+    queryKey: ["mesh", "held-upstreams"],
+    queryFn: fetchHeldUpstreams,
+    refetchInterval: 15000,
+    enabled,
+  });
+}
+
+export function useAcceptUpstream() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => acceptUpstream(name),
     onSettled: () => invalidateCatalog(qc),
   });
 }

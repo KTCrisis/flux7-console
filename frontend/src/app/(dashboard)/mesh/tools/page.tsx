@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTools, useMcpServers, usePolicies, useToolDecisions, useSetToolAction, usePendingPins, useReloadUpstreams, useRestartUpstream } from "@/lib/hooks/use-mesh";
+import { useTools, useMcpServers, usePolicies, useToolDecisions, useSetToolAction, usePendingPins, useReloadUpstreams, useRestartUpstream, useHeldUpstreams, useAcceptUpstream } from "@/lib/hooks/use-mesh";
 import { PendingPins } from "@/components/mesh/pending-pins";
 import { useConsoleRole } from "@/lib/role";
 import type { ToolAction, ToolClassification, ToolDecision } from "@/lib/api/mesh";
@@ -59,6 +59,7 @@ export default function ToolsPage() {
   const setAction = useSetToolAction();
   const reloadUpstreams = useReloadUpstreams();
   const restartUpstream = useRestartUpstream();
+  const acceptUpstream = useAcceptUpstream();
   // what the last reload or restart did, or why mesh7 refused it
   const [upstreamNote, setUpstreamNote] = useState<{ text: string; failed: boolean } | null>(null);
 
@@ -70,6 +71,7 @@ export default function ToolsPage() {
           d.changed.length ? `changed ${d.changed.join(", ")}` : "",
           d.removed.length ? `removed ${d.removed.join(", ")}` : "",
         ].filter(Boolean);
+        if (d.held.length) parts.push(`held ${d.held.join(", ")}`);
         setUpstreamNote({
           text: parts.length
             ? `${parts.join(" · ")} · ${d.unchanged.length} untouched`
@@ -77,6 +79,15 @@ export default function ToolsPage() {
           failed: false,
         });
       },
+      onError: (err) => setUpstreamNote({ text: err instanceof Error ? err.message : String(err), failed: true }),
+    });
+  }
+
+  function handleAccept(name: string, replaces: boolean) {
+    const effect = replaces ? `It replaces the ${name} that runs now.` : "It is a new server.";
+    if (!window.confirm(`Start ${name} as declared? mesh7 will run this itself. ${effect}`)) return;
+    acceptUpstream.mutate(name, {
+      onSuccess: () => setUpstreamNote({ text: `${name} accepted and started`, failed: false }),
       onError: (err) => setUpstreamNote({ text: err instanceof Error ? err.message : String(err), failed: true }),
     });
   }
@@ -89,6 +100,7 @@ export default function ToolsPage() {
     });
   }
   const isAdmin = useConsoleRole() === "admin";
+  const { data: heldUpstreams } = useHeldUpstreams(isAdmin);
   const { data: pendingPins } = usePendingPins(); // null: pin_tools off
   const heldByServer = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -215,7 +227,7 @@ export default function ToolsPage() {
             <button
               onClick={handleReload}
               disabled={reloadUpstreams.isPending}
-              title="Read mcp_servers again from mesh7's config file. Only the servers that changed are touched."
+              title="Read mcp_servers again from mesh7's config file. Removed servers are stopped; new or changed declarations are held until accepted."
               className="flex items-center gap-1.5 rounded border border-border px-2 py-0.5 text-[10px] font-mono text-muted-foreground hover:border-primary/50 hover:text-foreground disabled:opacity-50"
             >
               <RefreshCw className={cn("h-3 w-3", reloadUpstreams.isPending && "animate-spin")} />
@@ -228,6 +240,46 @@ export default function ToolsPage() {
             </span>
           )}
         </div>
+        {isAdmin && heldUpstreams && heldUpstreams.length > 0 && (
+          <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.05] p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-amber-300">
+              <TriangleAlert className="h-3.5 w-3.5" />
+              <span>
+                {heldUpstreams.length} declaration{heldUpstreams.length > 1 ? "s" : ""} changed in the config file.
+                Nothing was started. Read what each would run before accepting it.
+              </span>
+            </div>
+            {heldUpstreams.map((h) => (
+              <div key={h.name} className="flex items-start justify-between gap-3 rounded border border-border bg-card px-3 py-2">
+                <div className="min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium">{h.name}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {h.transport} · {h.replaces ? "replaces the running declaration" : "new server"}
+                    </span>
+                  </div>
+                  <div className="font-mono text-[11px] text-foreground/90 break-all">
+                    {h.command ? [h.command, ...(h.args ?? [])].join(" ") : h.url}
+                  </div>
+                  {(h.env_keys?.length || h.header_keys?.length) ? (
+                    <div className="font-mono text-[10px] text-muted-foreground">
+                      {h.env_keys?.length ? `env: ${h.env_keys.join(", ")}` : ""}
+                      {h.env_keys?.length && h.header_keys?.length ? " · " : ""}
+                      {h.header_keys?.length ? `headers: ${h.header_keys.join(", ")}` : ""}
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  onClick={() => handleAccept(h.name, h.replaces)}
+                  disabled={acceptUpstream.isPending}
+                  className="shrink-0 rounded border border-amber-500/40 px-2 py-1 text-[11px] font-mono text-amber-300 hover:bg-amber-500/10 disabled:opacity-50"
+                >
+                  accept and start
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {loadingServers ? (
             Array.from({ length: 4 }).map((_, i) => (
